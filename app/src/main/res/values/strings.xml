@@ -1,3 +1,14 @@
 <resources>
-    <string name="app_name">EnvLink</string>
+    <!-- App Info -->
+    <string name="app_name">Env Link</string>
+    <string name="app_slogan">给植物一个智能的家</string>
+    <string name="app_version">Aurora</string>
+    <string name="app_version_code">A (Build 50)</string>
+    <string name="copyrights">Copyrights © 2026 Code IntelliX.</string>
+    <string name="all_rights_reserved">All rights reserved.</string>
+    <string name="wqz">Wu-Qizhen</string>
+
+    <string name="env_link">Env Link</string>
+    <string name="intelligence">智能</string>
+    <string name="mine">我的</string>
 </resources>

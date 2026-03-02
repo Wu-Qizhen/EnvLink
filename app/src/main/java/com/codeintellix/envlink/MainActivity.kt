@@ -1,47 +1,58 @@
 package com.codeintellix.envlink
 
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.annotation.RequiresApi
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
-import com.codeintellix.envlink.ui.theme.EnvLinkTheme
+import com.codeintellix.envlink.activity.common.screen.MainScreen
+import com.codeintellix.envlink.activity.common.screen.SplashScreen
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
+/**
+ * 代码不注释，同事两行泪！（给！爷！写！）
+ * Elegance is not a dispensable luxury but a quality that decides between success and failure!
+ * Created by Wu Qizhen on 2026.01.10
+ */
 class MainActivity : ComponentActivity() {
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        // 显示启动画面并初始化应用
+        showSplashScreen()
+
+        // 延迟 0.5 秒后初始化应用
+        CoroutineScope(Dispatchers.Main).launch {
+            delay(500) // 强制显示 0.5 秒
+            initApp()
+        }
+    }
+
+    private fun showSplashScreen() {
         setContent {
-            EnvLinkTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Android",
-                        modifier = Modifier.padding(innerPadding)
-                    )
-                }
+            Box(
+                modifier = Modifier.fillMaxSize()
+            ) {
+                SplashScreen()
             }
         }
     }
-}
 
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    EnvLinkTheme {
-        Greeting("Android")
+    private fun initApp() {
+        setContent {
+            Box(
+                modifier = Modifier.fillMaxSize()
+            ) {
+                MainScreen()
+            }
+        }
     }
 }

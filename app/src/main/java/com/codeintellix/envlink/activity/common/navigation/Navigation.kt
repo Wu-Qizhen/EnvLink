@@ -1,0 +1,12 @@
+package com.codeintellix.envlink.activity.common.navigation
+
+/**
+ * 代码不注释，同事两行泪！（给！爷！写！）
+ * Elegance is not a dispensable luxury but a quality that decides between success and failure!
+ * Created by Wu Qizhen on 2026.01.10
+ */
+sealed class Screen(val route: String) {
+    object EnvLink : Screen("env_link")
+    object Intelligence : Screen("intelligence")
+    object Mine : Screen("mine")
+}
