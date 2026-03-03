@@ -50,6 +50,7 @@ fun SplashScreen() {
         )
     ) {*/
     XBackground.Space(
+        backgroundColor = Color.White,
         activeColor = PaleGreen.withAlpha(0.6f),
         secondaryColor = Green,
         tertiaryColor = LightGreen.withAlpha(0.5f)
@@ -77,7 +78,7 @@ fun SplashScreen() {
                     text = stringResource(id = R.string.app_name),
                     fontSize = 32.sp,
                     fontFamily = XFont.THEME,
-                    color = Color.White
+                    color = Color.Black
                 )
             }
 
@@ -89,7 +90,7 @@ fun SplashScreen() {
                     .padding(bottom = 50.dp),
                 fontSize = 20.sp,
                 fontFamily = XFont.THEME,
-                color = Color.White
+                color = Color.Black
             )
         }
     }

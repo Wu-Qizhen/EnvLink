@@ -33,6 +33,9 @@ import androidx.compose.ui.unit.dp
 import com.codeintellix.envlink.activity.common.navigation.NavigationTab
 import com.codeintellix.envlink.activity.common.navigation.NavigationTabs
 import com.codeintellix.envlink.activity.theme.Gray
+import com.codeintellix.envlink.activity.theme.LightGreen
+import com.codeintellix.envlink.activity.theme.WhiteGray
+import com.codeintellix.envlink.activity.theme.SoftGreen
 import kotlinx.coroutines.launch
 
 /**
@@ -74,10 +77,8 @@ fun MainScreen() {
             }
         }
     ) { innerPadding ->
-        XBackground.Space(
-            activeColor = items[currentPage].iconColor,
-            secondaryColor = null,
-            tertiaryColor = null,
+        XBackground.Gradient(
+            backgroundColors = listOf(SoftGreen, Color.White, SoftGreen),
             toastMargin = XPadding.horizontal(20).bottom(110)
         ) {
             Column(
@@ -91,7 +92,7 @@ fun MainScreen() {
                 ) { page ->
                     when (page) {
                         0 -> EnvLinkPage()
-                        1 -> IntelligencePage()
+                        1 -> DataPage()
                         2 -> MinePage()
                     }
                 }
@@ -106,6 +107,7 @@ fun BottomNavigationBar(
     currentPage: Int,
     onPageSelected: (Int) -> Unit
 ) {
+    val highlightColor = LightGreen
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -115,7 +117,7 @@ fun BottomNavigationBar(
                 .fillMaxWidth()
         ) {
             drawLine(
-                color = Color(255, 255, 255, 50),
+                color = WhiteGray,
                 strokeWidth = 1.dp.toPx(),
                 start = Offset(0f, 0f),
                 end = Offset(size.width, 0f)
@@ -123,7 +125,7 @@ fun BottomNavigationBar(
         }
 
         NavigationBar(
-            containerColor = Color(20, 20, 20, 255)
+            containerColor = Color.White
         ) {
             items.forEachIndexed { index, item ->
                 NavigationBarItem(
@@ -134,7 +136,8 @@ fun BottomNavigationBar(
                                 .padding(vertical = 4.dp),
                             painter = painterResource(id = item.icon),
                             tint = if (currentPage == index) {
-                                item.iconColor
+                                // item.iconColor
+                                highlightColor
                             } else {
                                 Gray
                             },
@@ -144,13 +147,13 @@ fun BottomNavigationBar(
                     label = {
                         Text(
                             text = stringResource(id = item.text),
-                            color = if (currentPage == index) Color.White else Gray
+                            color = if (currentPage == index) highlightColor else Gray
                         )
                     },
                     selected = currentPage == index,
                     colors = NavigationBarItemDefaults.colors(
-                        // indicatorColor = Color(24, 24, 52) // 选中时指示器背景色
-                        indicatorColor = item.iconColor.withAlpha(0.2f),
+                        // indicatorColor = item.iconColor.withAlpha(0.2f),
+                        indicatorColor = highlightColor.withAlpha(0.2f),
                     ),
                     onClick = {
                         onPageSelected(index)

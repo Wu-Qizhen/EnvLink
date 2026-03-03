@@ -20,8 +20,8 @@ data class NavigationTab(
 
 object NavigationTabs {
     fun getNavigationTabs(): List<NavigationTab> = listOf(
-        NavigationTab(Screen.EnvLink, R.drawable.ic_env_link, LightGreen, R.string.env_link),
-        NavigationTab(Screen.Intelligence, R.drawable.ic_ai, Yellow, R.string.intelligence),
+        NavigationTab(Screen.EnvLink, R.drawable.ic_env_link, LightGreen, R.string.device),
+        NavigationTab(Screen.Data, R.drawable.ic_ai, Yellow, R.string.data),
         NavigationTab(Screen.Mine, R.drawable.ic_smile, OrangeRed, R.string.mine)
     )
 }

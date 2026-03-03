@@ -9,6 +9,9 @@
     <string name="wqz">Wu-Qizhen</string>
 
     <string name="env_link">Env Link</string>
-    <string name="intelligence">智能</string>
+    <string name="my_device">我的设备</string>
+    <string name="device">设备</string>
+    <string name="data_statistic">数据统计</string>
+    <string name="data">数据</string>
     <string name="mine">我的</string>
 </resources>

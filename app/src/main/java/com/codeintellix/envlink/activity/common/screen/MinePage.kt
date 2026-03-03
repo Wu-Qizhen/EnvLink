@@ -28,7 +28,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.codeintellix.envlink.R
 import com.codeintellix.envlink.activity.theme.Gray
-import com.codeintellix.envlink.activity.theme.OrangeRed
+import com.codeintellix.envlink.activity.theme.LightGreen
+import com.codeintellix.envlink.activity.theme.WhiteGray
 
 /**
  * 代码不注释，同事两行泪！（给！爷！写！）
@@ -37,6 +38,7 @@ import com.codeintellix.envlink.activity.theme.OrangeRed
  */
 @Composable
 fun MinePage() {
+    val themeColor = LightGreen
     val scrollState = rememberScrollState()
     val isScrolled by remember {
         derivedStateOf { scrollState.value > 0 }
@@ -49,11 +51,11 @@ fun MinePage() {
         Column(
             modifier = Modifier.fillMaxSize()
         ) {
-            // Header
             XHeader.IconText(
                 icon = R.drawable.ic_smile,
-                iconColor = OrangeRed,
+                iconColor = themeColor,
                 text = R.string.mine,
+                textColor = Color.Black,
                 fontSize = 28,
                 fontWeight = FontWeight.Normal,
                 headerPadding = XPadding.all(20),
@@ -65,7 +67,7 @@ fun MinePage() {
                     .fillMaxWidth()
             ) {
                 drawLine(
-                    color = if (isScrolled) Color(255, 255, 255, 50) else Color.Transparent,
+                    color = if (isScrolled) WhiteGray else Color.Transparent,
                     strokeWidth = 1.dp.toPx(),
                     start = Offset(0f, 0f),
                     end = Offset(size.width, 0f)
@@ -79,7 +81,7 @@ fun MinePage() {
                         top = 10.dp,
                         start = 20.dp,
                         end = 20.dp,
-                        bottom = 50.dp
+                        bottom = 120.dp
                     )
                     .fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(15.dp)

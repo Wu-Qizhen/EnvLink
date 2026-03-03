@@ -7,6 +7,6 @@ package com.codeintellix.envlink.activity.common.navigation
  */
 sealed class Screen(val route: String) {
     object EnvLink : Screen("env_link")
-    object Intelligence : Screen("intelligence")
+    object Data : Screen("data")
     object Mine : Screen("mine")
 }

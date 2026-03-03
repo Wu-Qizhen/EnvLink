@@ -5,30 +5,35 @@ import aethex.matrix.foundation.color.XColorGroup
 import aethex.matrix.foundation.property.XPadding
 import aethex.matrix.ui.XHeader
 import aethex.matrix.ui.XIcon
-import android.content.Context
-import android.os.Build
-import android.os.VibrationEffect
-import android.os.VibratorManager
+import android.content.Intent
 import android.widget.Toast
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.VectorConverter
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -38,12 +43,21 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.codeintellix.envlink.R
-import com.codeintellix.envlink.activity.theme.Blue
+import com.codeintellix.envlink.activity.common.DeviceActivity
+import com.codeintellix.envlink.activity.common.widget.FadeEdge
+import com.codeintellix.envlink.activity.common.widget.MicaCard
+import com.codeintellix.envlink.activity.common.widget.ScrollableRowTab
+import com.codeintellix.envlink.activity.theme.BlackGray
+import com.codeintellix.envlink.activity.theme.Gray
+import com.codeintellix.envlink.activity.theme.LightGreen
+import com.codeintellix.envlink.activity.theme.WhiteGray
 import kotlinx.coroutines.launch
 
 /**
@@ -59,13 +73,13 @@ fun EnvLinkPage() {
         derivedStateOf { scrollState.value > 0 }
     }
 
-    // 彩蛋功能状态
-    var isEasterEggActivated by remember { mutableStateOf(false) }
-    var isHeaderHappyFace by remember { mutableStateOf(false) }
-
     // 拖拽回弹效果
     val scope = rememberCoroutineScope()
     val dragOffset = remember { Animatable(IntOffset(0, 0), IntOffset.VectorConverter) }
+
+    val tabs =
+        listOf("全屋", "阳台", "客厅", "卧室", "厨房", "餐厅", "卫生间")
+    var selectedTab by remember { mutableIntStateOf(0) }
 
     Box(
         modifier = Modifier
@@ -74,41 +88,17 @@ fun EnvLinkPage() {
         Column(
             modifier = Modifier.fillMaxSize()
         ) {
-            // Header
             XHeader.IconText(
-                icon = if (isEasterEggActivated) {
-                    if (isHeaderHappyFace) R.drawable.ic_happy_face else R.drawable.ic_happy_face_outlined
-                } else {
-                    R.drawable.ic_env_link
-                },
-                text = stringResource(R.string.env_link),
+                icon = R.drawable.logo_env_link_green,
+                text = stringResource(R.string.my_device),
+                textColor = Color.Black,
                 fontWeight = FontWeight.Normal,
                 fontSize = 28,
                 headerPadding = XPadding.all(20),
                 iconTextPadding = XPadding.all(10),
                 modifier = Modifier.clickVfx(
                     onClick = {
-                        if (isEasterEggActivated) {
-                            // 短暂振动
-                            val vibratorManager =
-                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                                    context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
-                                } else {
-                                    TODO("VERSION.SDK_INT < S")
-                                }
-                            val vibrator = vibratorManager.defaultVibrator
-                            vibrator.vibrate(VibrationEffect.createOneShot(100, 100))
-
-                            // 切换图标状态
-                            isHeaderHappyFace = !isHeaderHappyFace
-                            Toast.makeText(context, "👻", Toast.LENGTH_SHORT).show()
-                        }
-                    },
-                    onLongClick = {
-                        if (isEasterEggActivated && isHeaderHappyFace) {
-                            Toast.makeText(context, "😺", Toast.LENGTH_SHORT).show()
-                            // TODO
-                        }
+                        Toast.makeText(context, "🌱", Toast.LENGTH_SHORT).show()
                     }
                 )
             )
@@ -118,7 +108,7 @@ fun EnvLinkPage() {
                     .fillMaxWidth()
             ) {
                 drawLine(
-                    color = if (isScrolled) Color(255, 255, 255, 50) else Color.Transparent,
+                    color = if (isScrolled) WhiteGray else Color.Transparent,
                     strokeWidth = 1.dp.toPx(),
                     start = Offset(0f, 0f),
                     end = Offset(size.width, 0f)
@@ -130,42 +120,52 @@ fun EnvLinkPage() {
                     .verticalScroll(scrollState)
                     .padding(
                         top = 10.dp,
-                        start = 20.dp,
-                        end = 20.dp,
                         bottom = 120.dp
                     )
                     .fillMaxWidth()
                     .weight(1f),
                 verticalArrangement = Arrangement.spacedBy(15.dp)
             ) {
-                Column(
-                    modifier = Modifier
-                        .clickVfx(onClick = {
+                HeaderArea()
 
-                            // 切换彩蛋激活状态
-                            isEasterEggActivated = !isEasterEggActivated
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    ScrollableRowTab(
+                        tabs = tabs,
+                        selectedTabIndex = selectedTab,
+                        onTabSelected = { selectedTab = it },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .align(Alignment.CenterStart),
+                        padding = XPadding.only(start = 20, end = 80),
+                        fadeEdge = FadeEdge.Both(
+                            leftEndRatio = 0.05f,
+                            rightStartRatio = 0.75f,
+                            rightEndRatio = 0.85f
+                        )
+                    )
 
-                            // 如果关闭激活状态，重置 XHeader 图标状态
-                            if (!isEasterEggActivated) {
-                                isHeaderHappyFace = false
-                            }
-
-                            Toast.makeText(context, "⁉️", Toast.LENGTH_SHORT).show()
-
-                        })
-                        .fillMaxWidth()
-                        .padding(vertical = 20.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-
+                    Box(
+                        modifier = Modifier
+                            .padding(end = 20.dp)
+                            .align(Alignment.CenterEnd)
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_menu),
+                            tint = BlackGray,
+                            contentDescription = null,
+                            modifier = Modifier.size(30.dp)
+                        )
+                    }
                 }
+
+                DevicesArea()
             }
         }
 
         Box(
             modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 30.dp)
+                .align(Alignment.TopEnd)
+                .padding(horizontal = 20.dp, vertical = 15.dp)
                 .offset { dragOffset.value }
                 .pointerInput(Unit) {
                     detectDragGestures(
@@ -198,15 +198,208 @@ fun EnvLinkPage() {
         ) {
             XIcon.RoundPlane(
                 icon = R.drawable.ic_add,
-                iconSize = 30,
+                iconSize = 20,
                 color = XColorGroup(
-                    background = Blue,
+                    background = LightGreen,
                     content = Color.White
                 ),
-                planeSize = 60,
+                planeSize = 40,
                 onClick = {
                     // TODO
                 }
+            )
+        }
+    }
+}
+
+/**
+ * 头部区域
+ */
+@Composable
+fun HeaderArea() {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = "碧桂园",
+            fontSize = 24.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = BlackGray
+        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Image(
+                painter = painterResource(id = R.drawable.weather_cloudy),
+                contentDescription = null,
+                modifier = Modifier.size(30.dp)
+            )
+            Spacer(modifier = Modifier.width(5.dp))
+            Text(
+                text = "28°",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = BlackGray
+            )
+        }
+    }
+}
+
+/**
+ * 设备区域
+ */
+@Composable
+fun DevicesArea() {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp),
+        verticalArrangement = Arrangement.spacedBy(15.dp)
+    ) {
+        DeviceCard(
+            name = "微环境控制器",
+            location = "阳台",
+            isOnline = true,
+        )
+
+        DeviceCard(
+            name = "微环境控制器",
+            location = "窗台",
+            isOnline = false
+        )
+    }
+}
+
+/**
+ * 设备卡片
+ */
+@Composable
+fun DeviceCard(
+    name: String,
+    location: String,
+    isOnline: Boolean,
+    temperature: Int = 26,
+    humidity: Int = 70,
+    light: Int = 850,
+    moisture: Int = 45
+) {
+    val context = LocalContext.current
+    MicaCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(150.dp),
+        onClick = {
+            val intent = Intent(context, DeviceActivity::class.java)
+            context.startActivity(intent)
+        }
+    ) {
+        Box(
+            modifier = Modifier.fillMaxSize()
+        ) {
+            Row(
+                modifier = Modifier.align(Alignment.TopStart),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Image(
+                    painter = painterResource(id = R.drawable.img_plant),
+                    contentDescription = null,
+                    modifier = Modifier.size(50.dp)
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                Column {
+                    Text(
+                        text = name,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (isOnline) BlackGray else Gray
+                    )
+                    Text(
+                        text = "$location | ${if (isOnline) "在线" else "离线"}",
+                        fontSize = 14.sp,
+                        color = Gray
+                    )
+                }
+            }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 10.dp)
+                    .align(Alignment.BottomStart),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                EnvironmentIndicator(
+                    // modifier = Modifier.weight(1f),
+                    label = "温度",
+                    value = if (isOnline) temperature.toString() else "--",
+                    unit = "℃",
+                    isOnline = isOnline
+                )
+                EnvironmentIndicator(
+                    // modifier = Modifier.weight(1f),
+                    label = "湿度",
+                    value = if (isOnline) humidity.toString() else "--",
+                    unit = "%",
+                    isOnline = isOnline
+                )
+                EnvironmentIndicator(
+                    // modifier = Modifier.weight(1f),
+                    label = "光照",
+                    value = if (isOnline) light.toString() else "--",
+                    unit = "Lux",
+                    isOnline = isOnline
+                )
+                EnvironmentIndicator(
+                    // modifier = Modifier.weight(1f),
+                    label = "土壤",
+                    value = if (isOnline) moisture.toString() else "--",
+                    unit = "%",
+                    isOnline = isOnline
+                )
+            }
+        }
+    }
+}
+
+/**
+ * 环境指标
+ */
+@Composable
+fun EnvironmentIndicator(
+    // modifier: Modifier = Modifier,
+    label: String,
+    value: String,
+    unit: String,
+    isOnline: Boolean = true
+) {
+    Row(
+        // modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center
+    ) {
+        Text(
+            text = value,
+            fontSize = 28.sp,
+            fontWeight = FontWeight.Bold,
+            color = if (isOnline) BlackGray else Gray
+        )
+        Spacer(modifier = Modifier.width(3.dp))
+        Column {
+            Text(
+                text = unit,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = if (isOnline) BlackGray else Gray
+            )
+            Text(
+                text = label,
+                fontSize = 10.sp,
+                color = Gray
             )
         }
     }

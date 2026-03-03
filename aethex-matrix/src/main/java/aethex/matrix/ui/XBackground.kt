@@ -87,6 +87,75 @@ object XBackground {
     const val TOAST_HORIZONTAL_MARGIN = 20
 
     /**
+     * 渐变背景
+     *
+     * @param content 内容
+     *
+     * Created by Wu Qizhen on 2026.3.2
+     */
+    @Composable
+    fun Gradient(
+        backgroundColors: List<Color>,
+        toastMargin: XPadding = XPadding.horizontal(TOAST_HORIZONTAL_MARGIN)
+            .bottom(XSpacings.getComponentSpacing().value.toInt()),
+        content: @Composable () -> Unit
+    ) {
+        XTheme {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Brush.verticalGradient(backgroundColors))
+            ) {
+                content()
+
+                // 提示系统
+                // 1. Toast 提示
+                ScaleFade(
+                    visible = XToast.toastContent.isNotEmpty(),
+                    enter = fadeIn() + slideInVertically { it / 2 },
+                    exit = fadeOut() + slideOutVertically { it / 2 },
+                    modifier = Modifier.align(Alignment.BottomCenter)
+                ) {
+                    XToast.ToastContent(
+                        content = XToast.toastContent,
+                        toastMargin = toastMargin
+                    )
+                }
+
+                // 2. SnackBar 提示
+                ScaleFade(
+                    visible = XToast.snackBarObject != null,
+                    enter = fadeIn() + slideInVertically { it / 2 },
+                    exit = fadeOut() + slideOutVertically { it / 2 },
+                    modifier = Modifier.align(Alignment.BottomCenter)
+                ) {
+                    XToast.snackBarObject?.let {
+                        XToast.SnackBarContent(
+                            it,
+                            toastMargin = toastMargin
+                        )
+                    }
+                }
+
+                // 3. 自动隐藏逻辑
+                LaunchedEffect(key1 = XToast.toastContent) {
+                    if (XToast.toastContent.isNotEmpty()) {
+                        delay(2000)
+                        XToast.toastContent = ""
+                    }
+                }
+
+                LaunchedEffect(key1 = XToast.snackBarObject) {
+                    if (XToast.snackBarObject != null) {
+                        delay(2000)
+                        XToast.snackBarObject = null
+                    }
+                }
+            }
+        }
+    }
+
+    /**
      * 圆形背景
      *
      * @param content 内容

@@ -22,16 +22,15 @@ import kotlinx.coroutines.launch
  * Created by Wu Qizhen on 2026.01.10
  */
 class MainActivity : ComponentActivity() {
-    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         // 显示启动画面并初始化应用
         showSplashScreen()
 
-        // 延迟 0.5 秒后初始化应用
+        // 延迟后初始化应用
         CoroutineScope(Dispatchers.Main).launch {
-            delay(500) // 强制显示 0.5 秒
+            delay(1000) // 强制显示
             initApp()
         }
     }

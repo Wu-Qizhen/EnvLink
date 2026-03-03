@@ -1,6 +1,5 @@
 package com.codeintellix.envlink.activity.theme
 
-import aethex.matrix.foundation.color.withAlpha
 import androidx.compose.ui.graphics.Color
 
 /**
@@ -17,6 +16,7 @@ val SkyBlue = Color(41, 218, 255)
 val Green = Color(12, 159, 113)
 val PaleGreen = Color(18, 192, 153)
 val LightGreen = Color(39, 211, 108)
+val SoftGreen = Color(240, 253, 244)
 val YellowGreen = Color(153, 233, 36)
 val Yellow = Color(255, 210, 0)
 val PaleYellow = Color(238, 193, 90)
@@ -27,10 +27,13 @@ val OrangeRed = Color(214, 77, 91)
 val Red = Color(236, 37, 55)
 val Pink = Color(251, 114, 153)
 val PurplePink = Color(220, 68, 144)
+val GrayWhite = Color(240, 240, 240)
+val WhiteGray = Color(220, 220, 220)
+val LightGray = Color(180, 180, 180)
 val Gray = Color(148, 164, 184)
-val LightGray = Color(60, 60, 60)
 val DarkGray = Color(40, 40, 40)
 val BlackGray = Color(33, 33, 33)
 val BlackTransparent = Color(0, 0, 0, 50)
 
-val OptionBackground = LightGray.withAlpha(0.5f)
+val OptionBackground = Color.White
+val OptionBackgroundPressed = GrayWhite
