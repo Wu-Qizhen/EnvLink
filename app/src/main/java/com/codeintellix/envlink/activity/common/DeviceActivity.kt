@@ -153,19 +153,30 @@ class DeviceActivity : ComponentActivity() {
         val systemBarPadding = WindowInsets.systemBars.asPaddingValues()
         val context = LocalContext.current
         val scrollState = rememberScrollState()
-        val isScrolled by remember {
-            derivedStateOf { scrollState.value > 0 }
+        val startFadePx = with(LocalDensity.current) { 50.dp.toPx() } // 开始变透明的滚动阈值
+        val endFadePx = with(LocalDensity.current) { 100.dp.toPx() }   // 完全透明的滚动阈值
+        val showHeaderLine by remember {
+            derivedStateOf { scrollState.value > endFadePx }
+        }
+        val plantAlpha by remember {
+            derivedStateOf {
+                val scroll = scrollState.value
+
+                when {
+                    scroll <= startFadePx -> 1f
+                    scroll >= endFadePx -> 0f
+                    else -> 1f - (scroll - startFadePx) / (endFadePx - startFadePx)
+                }
+            }
         }
 
-        val ambientAlpha = 0.6f
         val scope = rememberCoroutineScope()
         val dragOffset = remember { Animatable(IntOffset(0, 0), IntOffset.VectorConverter) }
         var imageHeight by remember { mutableIntStateOf(0) }
-
-        // 计算滚动阈值（像素）
         val currentHeightPx = (imageHeight - scrollState.value).coerceAtLeast(0)
         val currentHeightDp = with(LocalDensity.current) { currentHeightPx.toDp() }
-        val showBox = currentHeightDp.value > 100
+        // val showBox = currentHeightDp.value > 150
+        val showBox = plantAlpha > 0f
 
         Box(
             modifier = Modifier.fillMaxSize()
@@ -181,6 +192,7 @@ class DeviceActivity : ComponentActivity() {
                     contentDescription = null,
                     modifier = Modifier
                         .fillMaxWidth(0.35f)
+                        .alpha(plantAlpha)  // 新增透明度
                         .onSizeChanged { size ->
                             imageHeight = size.height
                         }
@@ -195,7 +207,7 @@ class DeviceActivity : ComponentActivity() {
                     // .fillMaxWidth()
                     // .scale(scaleX = 1.2f, scaleY = 1.2f)
                     .aspectRatio(1f)
-                    .alpha(ambientAlpha)
+                    .alpha((0.6f + (1f - plantAlpha) * 0.4f))
                     .background(
                         shape = CircleShape, brush = Brush.radialGradient(
                             listOf(
@@ -225,7 +237,7 @@ class DeviceActivity : ComponentActivity() {
                         .fillMaxWidth()
                 ) {
                     drawLine(
-                        color = if (isScrolled) WhiteGray else Color.Transparent,
+                        color = if (showHeaderLine) WhiteGray else Color.Transparent,
                         strokeWidth = 1.dp.toPx(),
                         start = Offset(0f, 0f),
                         end = Offset(size.width, 0f)
@@ -263,7 +275,7 @@ class DeviceActivity : ComponentActivity() {
                         .offset { dragOffset.value }
                         .fillMaxWidth(0.35f)
                         .height(currentHeightDp)
-                        .background(Color.Black.withAlpha(0.3f))
+                        // .background(Color.Black.withAlpha(0.3f))
                         .pointerInput(Unit) {
                             detectDragGestures(
                                 onDragEnd = {
