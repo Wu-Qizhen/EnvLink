@@ -27,8 +27,9 @@ import com.codeintellix.envlink.activity.theme.OptionBackgroundPressed
 @Composable
 fun MicaCard(
     modifier: Modifier = Modifier,
-    padding: XPadding = XPadding.all(10),
+    padding: XPadding = XPadding.all(15),
     borderRadius: Int = 20,
+    horizontalAlignment: Alignment.Horizontal = Alignment.CenterHorizontally,
     onClick: () -> Unit = {},
     content: @Composable () -> Unit
 ) {
@@ -63,7 +64,7 @@ fun MicaCard(
                 end = padding.end.dp,
                 bottom = padding.bottom.dp
             ),
-        horizontalAlignment = Alignment.CenterHorizontally
+        horizontalAlignment = horizontalAlignment
     ) {
         content()
     }

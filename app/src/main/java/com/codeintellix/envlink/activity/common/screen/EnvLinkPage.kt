@@ -292,6 +292,7 @@ fun DeviceCard(
         modifier = Modifier
             .fillMaxWidth()
             .height(150.dp),
+        padding = XPadding.all(10),
         onClick = {
             val intent = Intent(context, DeviceActivity::class.java)
             context.startActivity(intent)

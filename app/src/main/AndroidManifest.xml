@@ -21,5 +21,9 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity
+            android:name=".activity.common.DeviceActivity"
+            android:exported="false"
+            android:theme="@style/Theme.EnvLink" />
     </application>
 </manifest>
