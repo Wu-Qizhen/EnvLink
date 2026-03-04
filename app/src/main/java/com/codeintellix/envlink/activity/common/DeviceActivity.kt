@@ -58,7 +58,9 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -155,13 +157,15 @@ class DeviceActivity : ComponentActivity() {
             derivedStateOf { scrollState.value > 0 }
         }
 
-        // val localDensity = LocalDensity.current
         val ambientAlpha = 0.6f
-        // var circleHeight by remember { mutableStateOf(0.dp) }
-
-        // 拖拽回弹效果
         val scope = rememberCoroutineScope()
         val dragOffset = remember { Animatable(IntOffset(0, 0), IntOffset.VectorConverter) }
+        var imageHeight by remember { mutableIntStateOf(0) }
+
+        // 计算滚动阈值（像素）
+        val currentHeightPx = (imageHeight - scrollState.value).coerceAtLeast(0)
+        val currentHeightDp = with(LocalDensity.current) { currentHeightPx.toDp() }
+        val showBox = currentHeightDp.value > 100
 
         Box(
             modifier = Modifier.fillMaxSize()
@@ -175,7 +179,11 @@ class DeviceActivity : ComponentActivity() {
                 Image(
                     painter = painterResource(id = R.drawable.illustration_plant),
                     contentDescription = null,
-                    modifier = Modifier.fillMaxWidth(0.35f)
+                    modifier = Modifier
+                        .fillMaxWidth(0.35f)
+                        .onSizeChanged { size ->
+                            imageHeight = size.height
+                        }
                 )
             }
 
@@ -247,45 +255,41 @@ class DeviceActivity : ComponentActivity() {
                 }
             }
 
-            Box(
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(top = 80.dp, end = 40.dp)
-                    .offset { dragOffset.value }
-                    .pointerInput(Unit) {
-                        detectDragGestures(
-                            onDragEnd = {
-                                // 回弹效果，释放后使用 Spring 动力学弹回原位
-                                scope.launch {
-                                    dragOffset.animateTo(
-                                        targetValue = IntOffset(0, 0),
-                                        animationSpec = spring(
-                                            dampingRatio = Spring.DampingRatioMediumBouncy,
-                                            stiffness = Spring.StiffnessLow
+            if (showBox) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(top = 80.dp, end = 40.dp)
+                        .offset { dragOffset.value }
+                        .fillMaxWidth(0.35f)
+                        .height(currentHeightDp)
+                        .background(Color.Black.withAlpha(0.3f))
+                        .pointerInput(Unit) {
+                            detectDragGestures(
+                                onDragEnd = {
+                                    scope.launch {
+                                        dragOffset.animateTo(
+                                            targetValue = IntOffset(0, 0),
+                                            animationSpec = spring(
+                                                dampingRatio = Spring.DampingRatioMediumBouncy,
+                                                stiffness = Spring.StiffnessLow
+                                            )
                                         )
-                                    )
-                                }
-                            },
-                            onDrag = { change, dragAmount ->
-                                change.consume()
-                                // 跟随手指移动
-                                scope.launch {
-                                    dragOffset.snapTo(
-                                        IntOffset(
-                                            (dragOffset.value.x + dragAmount.x).toInt(),
-                                            (dragOffset.value.y + dragAmount.y).toInt()
+                                    }
+                                },
+                                onDrag = { change, dragAmount ->
+                                    change.consume()
+                                    scope.launch {
+                                        dragOffset.snapTo(
+                                            IntOffset(
+                                                (dragOffset.value.x + dragAmount.x).toInt(),
+                                                (dragOffset.value.y + dragAmount.y).toInt()
+                                            )
                                         )
-                                    )
+                                    }
                                 }
-                            }
-                        )
-                    }
-            ) {
-                Image(
-                    painter = painterResource(id = R.drawable.illustration_plant),
-                    contentDescription = null,
-                    alpha = 0f, // 完全透明
-                    modifier = Modifier.fillMaxWidth(0.35f)
+                            )
+                        }
                 )
             }
         }
