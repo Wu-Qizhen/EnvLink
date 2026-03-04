@@ -8,6 +8,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.annotation.DrawableRes
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.VectorConverter
@@ -31,17 +32,24 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -73,6 +81,7 @@ import com.codeintellix.envlink.activity.theme.WhiteGray
 import com.codeintellix.envlink.activity.theme.Yellow
 import com.codeintellix.envlink.entity.SensorData
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 /**
  * 代码不注释，同事两行泪！（给！爷！写！）
@@ -231,6 +240,10 @@ class DeviceActivity : ComponentActivity() {
                     StatusArea()
 
                     EnvironmentArea(sensorDataList)
+
+                    ControlArea()
+
+                    ThresholdArea()
                 }
             }
 
@@ -437,6 +450,282 @@ class DeviceActivity : ComponentActivity() {
                         .background(
                             brush = Brush.horizontalGradient(data.iconColor)
                         )
+                )
+            }
+        }
+    }
+
+    @Composable
+    fun ControlArea() {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(15.dp)
+        ) {
+            Text(
+                text = "设备控制",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = BlackGray
+            )
+
+            ControlCard(
+                icon = R.drawable.ic_ai,
+                iconColor = LightGreen,
+                title = "智能模式",
+                description = "根据环境自动控制",
+                status = true
+            ) {}
+
+            ControlCard(
+                icon = R.drawable.ic_fan,
+                iconColor = SkyBlue,
+                title = "风扇",
+                description = "通风系统",
+                status = false,
+                enabled = false
+            ) {}
+
+            ControlCard(
+                icon = R.drawable.ic_bulb,
+                iconColor = Yellow,
+                title = "补光灯",
+                description = "照明系统",
+                status = true,
+                enabled = false
+            ) {}
+
+            ControlCard(
+                icon = R.drawable.ic_pump,
+                iconColor = OrangeYellow,
+                title = "水泵",
+                description = "灌溉系统",
+                status = false,
+                enabled = false
+            ) {}
+        }
+    }
+
+    @Composable
+    fun ControlCard(
+        modifier: Modifier = Modifier,
+        @DrawableRes icon: Int,
+        iconColor: Color,
+        title: String,
+        description: String,
+        status: Boolean,
+        enabled: Boolean = true,
+        onClick: () -> Unit
+    ) {
+        MicaCard(
+            modifier = modifier.fillMaxWidth(),
+            padding = XPadding.all(15),
+            horizontalAlignment = Alignment.Start,
+            onClick = { if (enabled) onClick }
+        ) {
+            Box(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.align(Alignment.CenterStart),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(iconColor),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            painter = painterResource(icon),
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(10.dp))
+
+                    Column {
+                        Text(
+                            text = title,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = BlackGray,
+                            maxLines = 1
+                        )
+
+                        Text(
+                            text = description,
+                            fontSize = 12.sp,
+                            color = Gray,
+                            maxLines = 1
+                        )
+                    }
+                }
+
+                Switch(
+                    modifier = Modifier.align(Alignment.CenterEnd),
+                    checked = status,
+                    onCheckedChange = {
+                        onClick
+                    },
+                    enabled = enabled,
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Color.White,
+                        checkedTrackColor = LightGreen,
+                        uncheckedThumbColor = Color.White,
+                        uncheckedTrackColor = WhiteGray,
+                        uncheckedBorderColor = Color.Transparent,
+                        // 不可用状态
+                        disabledCheckedThumbColor = Color.White,
+                        disabledCheckedTrackColor = LightGreen.withAlpha(0.5f),
+                        disabledUncheckedThumbColor = Color.White,
+                        disabledUncheckedTrackColor = WhiteGray.withAlpha(0.5f),
+                        disabledUncheckedBorderColor = Color.Transparent
+                    )
+                )
+            }
+        }
+    }
+
+    @Composable
+    fun ThresholdArea() {
+        var moistureMinThreshold by remember { mutableIntStateOf(30) }
+        var moistureMaxThreshold by remember { mutableIntStateOf(70) }
+        var temperatureMinThreshold by remember { mutableIntStateOf(20) }
+        var temperatureMaxThreshold by remember { mutableIntStateOf(30) }
+
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(15.dp)
+        ) {
+            Text(
+                text = "阈值设置",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = BlackGray
+            )
+
+            ThresholdCard(
+                title = "温度下限",
+                description = "低于该温度关闭风扇",
+                value = temperatureMinThreshold,
+                minValue = 0,
+                maxValue = 50,
+                unit = "℃",
+                onValueChange = { newValue ->
+                    temperatureMinThreshold = newValue  // 更新状态
+                }
+            )
+
+            ThresholdCard(
+                title = "温度上限",
+                description = "高于该温度开启风扇",
+                value = temperatureMaxThreshold,
+                minValue = 0,
+                maxValue = 50,
+                unit = "℃",
+                onValueChange = { newValue ->
+                    temperatureMaxThreshold = newValue  // 更新状态
+                }
+            )
+
+            ThresholdCard(
+                title = "土壤湿度下限",
+                description = "低于该湿度开启水泵",
+                value = moistureMinThreshold,
+                minValue = 0,
+                maxValue = 100,
+                unit = "%",
+                onValueChange = { newValue ->
+                    moistureMinThreshold = newValue
+                }
+            )
+
+            ThresholdCard(
+                title = "土壤湿度上限",
+                description = "高于该湿度关闭水泵",
+                value = moistureMaxThreshold,
+                minValue = 0,
+                maxValue = 100,
+                unit = "%",
+                onValueChange = { newValue ->
+                    moistureMaxThreshold = newValue
+                }
+            )
+        }
+    }
+
+    @Composable
+    fun ThresholdCard(
+        modifier: Modifier = Modifier,
+        title: String,
+        description: String,
+        value: Int,
+        minValue: Int = 0,
+        maxValue: Int = 100,
+        unit: String,
+        onValueChange: (Int) -> Unit
+    ) {
+        require(minValue < maxValue) { "minValue ($minValue) must be less than maxValue ($maxValue)" }
+
+        MicaCard(
+            modifier = modifier.fillMaxWidth(),
+            padding = XPadding.all(15),
+            horizontalAlignment = Alignment.Start,
+            onClick = {}
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(
+                            text = title,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = BlackGray,
+                            maxLines = 1
+                        )
+
+                        Text(
+                            text = description,
+                            fontSize = 12.sp,
+                            color = Gray,
+                            maxLines = 1
+                        )
+                    }
+                    Text(
+                        text = "$value$unit",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = LightGreen,
+                        maxLines = 1
+                    )
+                }
+
+                Slider(
+                    value = value.toFloat(),
+                    onValueChange = { newValue ->
+                        onValueChange(newValue.roundToInt()) // 取整后回调
+                    },
+                    valueRange = minValue.toFloat()..maxValue.toFloat(), // 设置范围
+                    steps = (maxValue - minValue - 1).coerceAtLeast(0), // 使滑块只能在整数位置停留
+                    colors = SliderDefaults.colors(
+                        thumbColor = LightGreen,
+                        activeTrackColor = LightGreen,
+                        inactiveTrackColor = WhiteGray,
+                        activeTickColor = Color.Transparent,
+                        inactiveTickColor = Color.Transparent
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
                 )
             }
         }
