@@ -1,8 +1,12 @@
 package com.codeintellix.envlink.activity.common
 
+import aethex.matrix.foundation.color.XColorGroup
+import aethex.matrix.foundation.color.withAlpha
 import aethex.matrix.foundation.property.XPadding
 import aethex.matrix.ui.XBackground
+import aethex.matrix.ui.XCard
 import aethex.matrix.ui.XHeader
+import aethex.matrix.ui.XItem
 import android.Manifest
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothDevice
@@ -15,27 +19,30 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -52,14 +59,21 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.codeintellix.envlink.R
-import com.codeintellix.envlink.activity.theme.Blue
+import com.codeintellix.envlink.activity.common.widget.MicaCard
+import com.codeintellix.envlink.activity.theme.BlackGray
+import com.codeintellix.envlink.activity.theme.Gray
 import com.codeintellix.envlink.activity.theme.GreenWhite
+import com.codeintellix.envlink.activity.theme.LightGreen
+import com.codeintellix.envlink.activity.theme.OrangeRed
 import com.codeintellix.envlink.activity.theme.WhiteGray
 import com.codeintellix.envlink.data.device.DeviceViewModel
 import com.codeintellix.envlink.data.device.DeviceViewModelFactory
@@ -91,13 +105,10 @@ class DeviceAddActivity : ComponentActivity() {
     ) {
         val systemBarPadding = WindowInsets.systemBars.asPaddingValues()
         val context = LocalContext.current
-        val scrollState = rememberScrollState()
+        val listState = rememberLazyListState()
         val isScrolled by remember {
-            derivedStateOf { scrollState.value > 0 }
+            derivedStateOf { listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 0 }
         }
-
-        val scanResults by viewModel.scanResults.collectAsState()
-        val isScanning by viewModel.isScanning.collectAsState()
 
         // 权限请求
         var hasPermissions by remember { mutableStateOf(false) }
@@ -109,11 +120,8 @@ class DeviceAddActivity : ComponentActivity() {
                     Manifest.permission.ACCESS_FINE_LOCATION
                 )
             } else {
-                arrayOf(
-                    Manifest.permission.ACCESS_FINE_LOCATION
-                )
+                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION)
             }
-
         val permissionLauncher = rememberLauncherForActivityResult(
             contract = ActivityResultContracts.RequestMultiplePermissions()
         ) { permissions ->
@@ -121,7 +129,7 @@ class DeviceAddActivity : ComponentActivity() {
             if (hasPermissions) {
                 viewModel.startScan()
             } else {
-                Toast.makeText(context, "需要权限才能扫描蓝牙设备", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "需要权限才能连接设备", Toast.LENGTH_SHORT).show()
             }
         }
 
@@ -138,6 +146,10 @@ class DeviceAddActivity : ComponentActivity() {
             }
         }
 
+        // 扫描结果
+        val isScanning by viewModel.isScanning.collectAsState()
+        val scanResults by viewModel.scanResults.collectAsState()
+
         Box(
             modifier = Modifier.fillMaxSize()
         ) {
@@ -149,11 +161,11 @@ class DeviceAddActivity : ComponentActivity() {
                     // .fillMaxWidth()
                     // .scale(scaleX = 1.2f, scaleY = 1.2f)
                     .aspectRatio(1f)
-                    .alpha(0.6f)
+                    .alpha(0.4f)
                     .background(
                         shape = CircleShape, brush = Brush.radialGradient(
                             listOf(
-                                Blue,
+                                LightGreen,
                                 Color.Transparent
                             )
                         )
@@ -175,8 +187,7 @@ class DeviceAddActivity : ComponentActivity() {
                 )
 
                 Canvas(
-                    modifier = Modifier
-                        .fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     drawLine(
                         color = if (isScrolled) WhiteGray else Color.Transparent,
@@ -186,54 +197,122 @@ class DeviceAddActivity : ComponentActivity() {
                     )
                 }
 
-                Column(
+                LazyColumn(
+                    state = listState,
                     modifier = Modifier
-                        .verticalScroll(scrollState)
-                        .padding(
-                            top = 10.dp,
-                            start = 20.dp,
-                            end = 20.dp,
-                            bottom = 120.dp
-                        )
-                        .fillMaxWidth()
-                        .weight(1f),
+                        .weight(1f)
+                        .padding(horizontal = 20.dp),
                     verticalArrangement = Arrangement.spacedBy(15.dp)
                 ) {
-                    if (!hasPermissions) {
-                        Text("正在请求权限...")
-                    } else {
+                    item {
                         Column(
-                            modifier = Modifier.fillMaxSize()
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Button(
-                                onClick = { viewModel.startScan() },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
-                                enabled = !isScanning
+                            Spacer(modifier = Modifier.height(20.dp))
+
+                            MicaCard(
+                                modifier = Modifier.fillMaxWidth(),
+                                padding = XPadding.vertical(20).horizontal(15),
+                                shadowRadius = 10,
+                                shadowAlpha = 0.15f
                             ) {
-                                Text(if (isScanning) "扫描中..." else "重新扫描")
-                            }
-                            if (isScanning) {
-                                CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
-                            }
-                            LazyColumn {
-                                items(scanResults) { device ->
-                                    DeviceItem(
-                                        device = device,
-                                        onAddClick = {
-                                            viewModel.addDevice(device)
-                                            Toast.makeText(
-                                                context,
-                                                "已添加 ${device.name}",
-                                                Toast.LENGTH_SHORT
-                                            ).show()
-                                        }
+                                Image(
+                                    painter = painterResource(R.drawable.illustration_cabinet),
+                                    contentDescription = null,
+                                    modifier = Modifier
+                                        .fillMaxWidth(0.5f)
+                                )
+                                Spacer(modifier = Modifier.height(15.dp))
+                                if (hasPermissions) {
+                                    Text(
+                                        text = "设备搜索中",
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = BlackGray
                                     )
-                                    HorizontalDivider()
+                                    Text(
+                                        text = "请将手机尽量靠近要添加的设备",
+                                        fontSize = 14.sp,
+                                        color = LightGreen
+                                    )
+                                    Spacer(modifier = Modifier.height(15.dp))
+                                    XCard.Lively(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(50.dp),
+                                        borderRadius = 30,
+                                        color = XColorGroup(
+                                            background = LightGreen,
+                                            activeBackground = LightGreen.withAlpha(0.8f)
+                                        ),
+                                        padding = XPadding.horizontal(15).vertical(10),
+                                        onClick = {
+                                            if (isScanning) {
+                                                viewModel.stopScan()
+                                            } else {
+                                                viewModel.startScan()
+                                            }
+                                        }
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.fillMaxSize(),
+                                            horizontalArrangement = Arrangement.Center,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            if (isScanning) {
+                                                CircularProgressIndicator(
+                                                    modifier = Modifier.size(30.dp),
+                                                    color = Color.White
+                                                )
+                                                Spacer(modifier = Modifier.width(10.dp))
+                                            }
+
+                                            Text(
+                                                text = if (isScanning) "搜索中" else "重新搜索",
+                                                fontSize = 16.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color.White,
+                                                maxLines = 1
+                                            )
+                                        }
+                                    }
+                                } else {
+                                    Text(
+                                        text = "未开启权限",
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = OrangeRed
+                                    )
+                                    Text(
+                                        text = "正在请求权限",
+                                        fontSize = 14.sp,
+                                        color = Gray
+                                    )
                                 }
                             }
                         }
+                    }
+
+                    if (hasPermissions) {
+                        items(scanResults) { device ->
+                            DeviceItem(
+                                device = device,
+                                onAddClick = {
+                                    // TODO
+                                    viewModel.addDevice(device)
+                                    Toast.makeText(
+                                        context,
+                                        "已添加 ${device.name}",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                            )
+                        }
+                    }
+
+                    item {
+                        Spacer(modifier = Modifier.height(120.dp))
                     }
                 }
             }
@@ -242,16 +321,61 @@ class DeviceAddActivity : ComponentActivity() {
 
     @SuppressLint("MissingPermission")
     @Composable
-    fun DeviceItem(device: BluetoothDevice, onAddClick: () -> Unit) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
+    fun DeviceItem(
+        device: BluetoothDevice,
+        onAddClick: () -> Unit
+    ) {
+        MicaCard(
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Text(text = device.name ?: "未知设备", modifier = Modifier.padding(bottom = 4.dp))
-            Text(text = device.address, modifier = Modifier.padding(bottom = 8.dp))
-            Button(onClick = onAddClick) {
-                Text("添加")
+            Box(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.align(Alignment.CenterStart),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Image(
+                        painter = painterResource(id = R.drawable.img_plant),
+                        contentDescription = null,
+                        modifier = Modifier.size(50.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        Text(
+                            text = device.name ?: "未知设备",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = BlackGray,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.basicMarquee()
+                        )
+                        Spacer(modifier = Modifier.height(5.dp))
+                        Text(
+                            text = device.address,
+                            fontSize = 14.sp,
+                            color = Gray,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.basicMarquee()
+                        )
+                    }
+                }
+
+                XItem.Button(
+                    modifier = Modifier.align(Alignment.CenterEnd),
+                    color = XColorGroup(
+                        background = LightGreen,
+                        activeBackground = LightGreen.withAlpha(0.8f),
+                        border = null,
+                        activeBorder = null,
+                        content = Color.White,
+                        activeContent = Color.White
+                    ),
+                    text = "添加",
+                    onClick = onAddClick
+                )
             }
         }
     }

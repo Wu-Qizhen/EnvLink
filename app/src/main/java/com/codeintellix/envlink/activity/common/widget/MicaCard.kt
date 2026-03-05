@@ -30,6 +30,8 @@ fun MicaCard(
     padding: XPadding = XPadding.all(15),
     borderRadius: Int = 20,
     horizontalAlignment: Alignment.Horizontal = Alignment.CenterHorizontally,
+    shadowRadius: Int = 30,
+    shadowAlpha: Float = 0.2f,
     onClick: () -> Unit = {},
     content: @Composable () -> Unit
 ) {
@@ -48,10 +50,10 @@ fun MicaCard(
             .dropShadow(
                 RoundedCornerShape(borderRadius.dp),
                 shadow = Shadow(
-                    radius = 30.dp,
+                    radius = shadowRadius.dp,
                     color = LightGray,
                     spread = 5.dp,
-                    alpha = 0.2f
+                    alpha = shadowAlpha
                 )
             )
             .background(

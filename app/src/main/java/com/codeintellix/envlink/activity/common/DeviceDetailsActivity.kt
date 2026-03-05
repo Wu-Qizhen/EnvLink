@@ -248,7 +248,7 @@ class DeviceDetailsActivity : ComponentActivity() {
                     modifier = Modifier
                         .verticalScroll(scrollState)
                         .padding(
-                            top = 10.dp,
+                            top = 20.dp,
                             start = 20.dp,
                             end = 20.dp,
                             bottom = 120.dp

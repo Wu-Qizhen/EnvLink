@@ -13,6 +13,7 @@ import androidx.lifecycle.viewModelScope
 import com.codeintellix.envlink.domain.device.BluetoothScanner
 import com.codeintellix.envlink.entity.device.Device
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
@@ -36,6 +37,8 @@ class DeviceViewModel(
 
     private val _isScanning = MutableStateFlow(false)
     val isScanning: StateFlow<Boolean> = _isScanning
+
+    private var scanJob: Job? = null // 扫描协程的 Job
 
     private val discoveredDevices = mutableSetOf<BluetoothDevice>()
 
@@ -84,17 +87,27 @@ class DeviceViewModel(
     }
 
     fun startScan() {
-        viewModelScope.launch {
+        scanJob?.cancel()
+        scanJob = viewModelScope.launch {
             _isScanning.value = true
             discoveredDevices.clear()
-            bluetoothScanner.startScan()
-                .catch { e -> /* 处理错误 */ }
-                .collect { device ->
-                    discoveredDevices.add(device)
-                    _scanResults.value = discoveredDevices.toList()
-                }
-            _isScanning.value = false
+            try {
+                bluetoothScanner.startScan()
+                    .catch { e -> /* 处理错误 */ }
+                    .collect { device ->
+                        discoveredDevices.add(device)
+                        _scanResults.value = discoveredDevices.toList()
+                    }
+            } finally {
+                // 无论正常结束还是取消，都将扫描状态置为 false
+                _isScanning.value = false
+            }
         }
+    }
+
+    fun stopScan() {
+        scanJob?.cancel()
+        scanJob = null
     }
 
     fun addDevice(device: BluetoothDevice) {
@@ -116,11 +129,6 @@ class DeviceViewModel(
             // 开始配对或连接
             pairOrConnect(device)
         }
-    }
-
-    fun stopScan() {
-        // 实际上 startScan 的 awaitClose 会在 collector 取消时自动停止扫描
-        // 我们可以通过取消协程来停止，这里简化
     }
 
     private fun pairOrConnect(device: BluetoothDevice) {
