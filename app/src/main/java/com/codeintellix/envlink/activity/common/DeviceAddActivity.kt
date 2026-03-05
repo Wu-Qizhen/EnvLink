@@ -301,11 +301,6 @@ class DeviceAddActivity : ComponentActivity() {
                                 onAddClick = {
                                     // TODO
                                     viewModel.addDevice(device)
-                                    Toast.makeText(
-                                        context,
-                                        "已添加 ${device.name}",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
                                 }
                             )
                         }

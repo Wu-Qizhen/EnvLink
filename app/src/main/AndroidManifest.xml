@@ -43,5 +43,9 @@
             android:name=".activity.common.DeviceAddActivity"
             android:exported="false"
             android:theme="@style/Theme.EnvLink" />
+        <activity
+            android:name=".activity.prototype.DeviceTestActivity"
+            android:exported="false"
+            android:theme="@style/Theme.EnvLink" />
     </application>
 </manifest>

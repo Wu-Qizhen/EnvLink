@@ -42,7 +42,7 @@ class DeviceViewModel(
     private var listenerJob: Job? = null
 
     // 预先定义的配对码（应与 STM32 端 HC-05 设置的 PIN 码一致）
-    private val presetPin = "SPG"
+    private val presetPin = "McEnvCtr"
     private val sppUuid = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
 
     private val _scanResults = MutableStateFlow<List<BluetoothDevice>>(emptyList())
@@ -53,6 +53,9 @@ class DeviceViewModel(
 
     private val _connectionState = MutableStateFlow<ConnectionState>(ConnectionState.Idle)
     val connectionState: StateFlow<ConnectionState> = _connectionState
+
+    private val _receivedData = MutableStateFlow("")
+    val receivedData: StateFlow<String> = _receivedData
 
     private val discoveredDevices = mutableSetOf<BluetoothDevice>()
     private var bluetoothSocket: BluetoothSocket? = null
@@ -95,6 +98,7 @@ class DeviceViewModel(
 
     override fun onCleared() {
         appContext.unregisterReceiver(bondStateReceiver)
+        disconnectDevice()
         super.onCleared()
     }
 
@@ -217,6 +221,7 @@ class DeviceViewModel(
                 bluetoothSocket = socket
                 _connectionState.value = ConnectionState.Connected(device)
                 startListening(socket!!)
+                Toast.makeText(appContext, "连接成功", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -229,13 +234,33 @@ class DeviceViewModel(
                 while (isActive) {
                     val bytesRead = inputStream.read(buffer)
                     if (bytesRead > 0) {
-                        // TODO: 处理数据
+                        val received = String(buffer, 0, bytesRead, Charsets.UTF_8)
+                        _receivedData.value = _receivedData.value + received
                     }
                 }
             } catch (_: IOException) {
                 // 读取异常
             } finally {
                 disconnectDevice()
+            }
+        }
+    }
+
+    fun sendData(data: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val socket = bluetoothSocket
+            if (socket != null && socket.isConnected) {
+                try {
+                    socket.outputStream.write(data.toByteArray(Charsets.UTF_8))
+                    socket.outputStream.flush()
+                } catch (e: IOException) {
+                    e.printStackTrace()
+                    // 发送失败，可更新状态为失败
+                    _connectionState.value = ConnectionState.Failed("发送失败")
+                }
+            } else {
+                // 未连接时提示
+                _connectionState.value = ConnectionState.Failed("设备未连接")
             }
         }
     }

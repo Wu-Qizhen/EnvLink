@@ -1,8 +1,12 @@
 package com.codeintellix.envlink.activity.common.screen
 
 import aethex.matrix.animation.XActivateVfx.clickVfx
+import aethex.matrix.foundation.color.XColorGroup
+import aethex.matrix.foundation.color.withAlpha
 import aethex.matrix.foundation.property.XPadding
+import aethex.matrix.ui.XCard
 import aethex.matrix.ui.XHeader
+import android.content.Intent
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -21,12 +25,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.codeintellix.envlink.R
+import com.codeintellix.envlink.activity.prototype.DeviceTestActivity
 import com.codeintellix.envlink.activity.theme.Gray
 import com.codeintellix.envlink.activity.theme.LightGreen
 import com.codeintellix.envlink.activity.theme.WhiteGray
@@ -39,6 +45,7 @@ import com.codeintellix.envlink.activity.theme.WhiteGray
 @Composable
 fun MinePage() {
     val themeColor = LightGreen
+    val context = LocalContext.current
     val scrollState = rememberScrollState()
     val isScrolled by remember {
         derivedStateOf { scrollState.value > 0 }
@@ -87,6 +94,29 @@ fun MinePage() {
                 verticalArrangement = Arrangement.spacedBy(15.dp)
             ) {
                 // TODO
+                XCard.Lively(
+                    modifier = Modifier
+                        .fillMaxWidth(),
+                    borderRadius = 30,
+                    color = XColorGroup(
+                        background = LightGreen,
+                        activeBackground = LightGreen.withAlpha(0.8f)
+                    ),
+                    padding = XPadding.horizontal(15).vertical(10),
+                    onClick = {
+                        context.startActivity(
+                            Intent(context, DeviceTestActivity::class.java)
+                        )
+                    }
+                ) {
+                    Text(
+                        text = "调试选项",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        maxLines = 1
+                    )
+                }
             }
         }
 
