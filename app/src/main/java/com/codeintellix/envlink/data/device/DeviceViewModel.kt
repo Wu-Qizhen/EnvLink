@@ -8,16 +8,21 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.Build
+import android.widget.Toast
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.codeintellix.envlink.domain.device.BluetoothScanner
+import com.codeintellix.envlink.entity.device.ConnectionState
 import com.codeintellix.envlink.entity.device.Device
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
 import java.io.IOException
 import java.lang.reflect.Method
 import java.util.UUID
@@ -32,20 +37,25 @@ class DeviceViewModel(
     private val bluetoothScanner: BluetoothScanner,
     context: Context
 ) : ViewModel() {
+    private val appContext: Context = context.applicationContext
+    private var scanJob: Job? = null // 扫描协程的 Job
+    private var listenerJob: Job? = null
+
+    // 预先定义的配对码（应与 STM32 端 HC-05 设置的 PIN 码一致）
+    private val presetPin = "SPG"
+    private val sppUuid = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
+
     private val _scanResults = MutableStateFlow<List<BluetoothDevice>>(emptyList())
     val scanResults: StateFlow<List<BluetoothDevice>> = _scanResults
 
     private val _isScanning = MutableStateFlow(false)
     val isScanning: StateFlow<Boolean> = _isScanning
 
-    private var scanJob: Job? = null // 扫描协程的 Job
+    private val _connectionState = MutableStateFlow<ConnectionState>(ConnectionState.Idle)
+    val connectionState: StateFlow<ConnectionState> = _connectionState
 
     private val discoveredDevices = mutableSetOf<BluetoothDevice>()
-
-    // 预先定义的配对码（应与 STM32 端 HC-05 设置的 PIN 码一致）
-    private val presetPin = "SPG"
-    private val sppUuid = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
-    private val appContext: Context = context.applicationContext
+    private var bluetoothSocket: BluetoothSocket? = null
 
     // 广播接收器监听配对状态变化
     private val bondStateReceiver = object : BroadcastReceiver() {
@@ -65,10 +75,12 @@ class DeviceViewModel(
                     BluetoothDevice.BOND_BONDED -> {
                         // 配对成功，连接设备
                         device?.let { connectToDevice(it) }
+                        Toast.makeText(appContext, "配对成功", Toast.LENGTH_SHORT).show()
                     }
 
                     BluetoothDevice.BOND_NONE -> {
                         // 配对失败，可提示用户
+                        Toast.makeText(appContext, "配对失败", Toast.LENGTH_SHORT).show()
                     }
                 }
             }
@@ -146,6 +158,7 @@ class DeviceViewModel(
             }
         } catch (_: SecurityException) {
             // 权限不足，可提示用户
+            Toast.makeText(appContext, "权限不足，请授予权限", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -167,21 +180,80 @@ class DeviceViewModel(
     }
 
     // 建立蓝牙 Socket 连接
-    private fun connectToDevice(device: BluetoothDevice) {
+    fun connectToDevice(device: BluetoothDevice) {
+        // 取消当前任何连接
+        disconnectDevice()
+
         viewModelScope.launch(Dispatchers.IO) {
-            var socket: BluetoothSocket?
-            try {
-                // 先取消扫描，避免影响连接
-                bluetoothScanner.cancelDiscovery()
+            _connectionState.value = ConnectionState.Connecting
+            bluetoothScanner.cancelDiscovery()
 
-                socket = device.createRfcommSocketToServiceRecord(sppUuid)
-                socket.connect()
+            val maxRetries = 3
+            var socket: BluetoothSocket? = null
+            var success = false
 
-                // 连接成功，保存 socket 以备后续通信
-            } catch (e: IOException) {
-                e.printStackTrace()
-                // 连接失败，更新 UI
+            for (retryCount in 0 until maxRetries) {
+                try {
+                    socket = device.createRfcommSocketToServiceRecord(sppUuid)
+                    withTimeout(10_000L) {
+                        socket!!.connect()
+                    }
+                    success = true
+                    break
+                } catch (_: Exception) {
+                    socket?.close()
+                    socket = null
+                    if (retryCount == maxRetries - 1) {
+                        // 最后一次重试失败，不继续循环
+                        _connectionState.value = ConnectionState.Failed("连接失败，请稍后重试")
+                        return@launch
+                    }
+                    delay(1000L * (retryCount + 1)) // 退避时间
+                }
             }
+
+            if (success) {
+                // 连接成功，保存 socket 并启动监听
+                bluetoothSocket = socket
+                _connectionState.value = ConnectionState.Connected(device)
+                startListening(socket!!)
+            }
+        }
+    }
+
+    private fun startListening(socket: BluetoothSocket) {
+        listenerJob = viewModelScope.launch(Dispatchers.IO) {
+            val inputStream = socket.inputStream
+            val buffer = ByteArray(1024)
+            try {
+                while (isActive) {
+                    val bytesRead = inputStream.read(buffer)
+                    if (bytesRead > 0) {
+                        // TODO: 处理数据
+                    }
+                }
+            } catch (_: IOException) {
+                // 读取异常
+            } finally {
+                disconnectDevice()
+            }
+        }
+    }
+
+    fun disconnectDevice() {
+        listenerJob?.cancel()
+        listenerJob = null
+        closeSocket()
+        _connectionState.value = ConnectionState.Disconnected
+    }
+
+    private fun closeSocket() {
+        try {
+            bluetoothSocket?.close()
+        } catch (e: IOException) {
+            e.printStackTrace()
+        } finally {
+            bluetoothSocket = null
         }
     }
 }
