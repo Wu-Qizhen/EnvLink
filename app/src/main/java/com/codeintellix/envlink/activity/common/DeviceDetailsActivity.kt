@@ -73,15 +73,15 @@ import com.codeintellix.envlink.activity.theme.BlackGray
 import com.codeintellix.envlink.activity.theme.DarkBlue
 import com.codeintellix.envlink.activity.theme.Gray
 import com.codeintellix.envlink.activity.theme.GrayWhite
-import com.codeintellix.envlink.activity.theme.Green
+import com.codeintellix.envlink.activity.theme.GreenWhite
 import com.codeintellix.envlink.activity.theme.LightGreen
 import com.codeintellix.envlink.activity.theme.OrangeRed
 import com.codeintellix.envlink.activity.theme.OrangeYellow
 import com.codeintellix.envlink.activity.theme.SkyBlue
-import com.codeintellix.envlink.activity.theme.SoftGreen
 import com.codeintellix.envlink.activity.theme.WhiteGray
 import com.codeintellix.envlink.activity.theme.Yellow
-import com.codeintellix.envlink.entity.SensorData
+import com.codeintellix.envlink.activity.theme.YellowGreen
+import com.codeintellix.envlink.entity.sensor.SensorDataVO
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -90,10 +90,10 @@ import kotlin.math.roundToInt
  * Elegance is not a dispensable luxury but a quality that decides between success and failure!
  * Created by Wu Qizhen on 2026.01.10
  */
-class DeviceActivity : ComponentActivity() {
+class DeviceDetailsActivity : ComponentActivity() {
     // 预览时使用的数据
-    private val sensorDataList = listOf(
-        SensorData(
+    private val sensorDataVOLists = listOf(
+        SensorDataVO(
             title = "环境温度",
             value = "26",
             unit = "℃",
@@ -101,9 +101,9 @@ class DeviceActivity : ComponentActivity() {
             statusColor = LightGreen,
             progress = 0.6f,
             icon = R.drawable.ic_thermometer,
-            iconColor = listOf(LightGreen, Green)
+            iconColor = listOf(LightGreen, YellowGreen)
         ),
-        SensorData(
+        SensorDataVO(
             title = "空气湿度",
             value = "68",
             unit = "%",
@@ -113,7 +113,7 @@ class DeviceActivity : ComponentActivity() {
             icon = R.drawable.ic_water,
             iconColor = listOf(SkyBlue, DarkBlue)
         ),
-        SensorData(
+        SensorDataVO(
             title = "光照强度",
             value = "850",
             unit = "Lux",
@@ -123,7 +123,7 @@ class DeviceActivity : ComponentActivity() {
             icon = R.drawable.ic_sunny,
             iconColor = listOf(Yellow, OrangeYellow)
         ),
-        SensorData(
+        SensorDataVO(
             title = "土壤湿度",
             value = "45",
             unit = "%",
@@ -140,16 +140,16 @@ class DeviceActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             XBackground.Gradient(
-                backgroundColors = listOf(SoftGreen, Color.White, SoftGreen),
+                backgroundColors = listOf(GreenWhite, Color.White, GreenWhite),
                 toastMargin = XPadding.horizontal(20).bottom(110)
             ) {
-                DeviceScreen()
+                DeviceDetailsScreen()
             }
         }
     }
 
     @Composable
-    fun DeviceScreen() {
+    fun DeviceDetailsScreen() {
         val systemBarPadding = WindowInsets.systemBars.asPaddingValues()
         val context = LocalContext.current
         val scrollState = rememberScrollState()
@@ -259,7 +259,7 @@ class DeviceActivity : ComponentActivity() {
                 ) {
                     StatusArea()
 
-                    EnvironmentArea(sensorDataList)
+                    EnvironmentArea(sensorDataVOLists)
 
                     ControlArea()
 
@@ -335,7 +335,7 @@ class DeviceActivity : ComponentActivity() {
 
     @Composable
     fun EnvironmentArea(
-        sensorDataList: List<SensorData>
+        sensorDataVOList: List<SensorDataVO>
     ) {
         Column(
             modifier = Modifier.fillMaxWidth(),
@@ -345,7 +345,7 @@ class DeviceActivity : ComponentActivity() {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(15.dp)
             ) {
-                sensorDataList.take(2).forEach { data ->
+                sensorDataVOList.take(2).forEach { data ->
                     EnvironmentCard(
                         data = data,
                         modifier = Modifier.weight(1f)
@@ -356,7 +356,7 @@ class DeviceActivity : ComponentActivity() {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(15.dp)
             ) {
-                sensorDataList.drop(2).forEach { data ->
+                sensorDataVOList.drop(2).forEach { data ->
                     EnvironmentCard(
                         data = data,
                         modifier = Modifier.weight(1f)
@@ -368,7 +368,7 @@ class DeviceActivity : ComponentActivity() {
 
     @Composable
     fun EnvironmentCard(
-        data: SensorData,
+        data: SensorDataVO,
         modifier: Modifier = Modifier
     ) {
         MicaCard(

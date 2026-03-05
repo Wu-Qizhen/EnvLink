@@ -35,7 +35,7 @@ import com.codeintellix.envlink.activity.common.navigation.NavigationTabs
 import com.codeintellix.envlink.activity.theme.Gray
 import com.codeintellix.envlink.activity.theme.LightGreen
 import com.codeintellix.envlink.activity.theme.WhiteGray
-import com.codeintellix.envlink.activity.theme.SoftGreen
+import com.codeintellix.envlink.activity.theme.GreenWhite
 import kotlinx.coroutines.launch
 
 /**
@@ -78,7 +78,7 @@ fun MainScreen() {
         }
     ) { innerPadding ->
         XBackground.Gradient(
-            backgroundColors = listOf(SoftGreen, Color.White, SoftGreen),
+            backgroundColors = listOf(GreenWhite, Color.White, GreenWhite),
             toastMargin = XPadding.horizontal(20).bottom(110)
         ) {
             Column(

@@ -2,6 +2,20 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- 传统蓝牙权限 -->
+    <uses-permission android:name="android.permission.BLUETOOTH" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
+    <!-- Android 12+ 细分蓝牙权限 -->
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <!-- 扫描需要位置权限 -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
+    <!-- 声明使用蓝牙硬件 -->
+    <uses-feature
+        android:name="android.hardware.bluetooth"
+        android:required="true" />
 
     <application
         android:allowBackup="true"
@@ -22,7 +36,11 @@
             </intent-filter>
         </activity>
         <activity
-            android:name=".activity.common.DeviceActivity"
+            android:name=".activity.common.DeviceDetailsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.EnvLink" />
+        <activity
+            android:name=".activity.common.DeviceAddActivity"
             android:exported="false"
             android:theme="@style/Theme.EnvLink" />
     </application>

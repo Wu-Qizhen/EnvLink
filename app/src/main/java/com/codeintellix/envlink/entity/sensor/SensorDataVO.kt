@@ -1,4 +1,4 @@
-package com.codeintellix.envlink.entity
+package com.codeintellix.envlink.entity.sensor
 
 import androidx.annotation.DrawableRes
 import androidx.compose.ui.graphics.Color
@@ -8,7 +8,7 @@ import androidx.compose.ui.graphics.Color
  * Elegance is not a dispensable luxury but a quality that decides between success and failure!
  * Created by Wu Qizhen on 2026.03.03
  */
-data class SensorData(
+data class SensorDataVO(
     var title: String, // 传感器名称
     var value: String, // 数值”
     var unit: String, // 单位

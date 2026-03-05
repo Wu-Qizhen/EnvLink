@@ -50,7 +50,8 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.codeintellix.envlink.R
-import com.codeintellix.envlink.activity.common.DeviceActivity
+import com.codeintellix.envlink.activity.common.DeviceAddActivity
+import com.codeintellix.envlink.activity.common.DeviceDetailsActivity
 import com.codeintellix.envlink.activity.common.widget.FadeEdge
 import com.codeintellix.envlink.activity.common.widget.MicaCard
 import com.codeintellix.envlink.activity.common.widget.ScrollableRowTab
@@ -205,7 +206,7 @@ fun EnvLinkPage() {
                 ),
                 planeSize = 40,
                 onClick = {
-                    // TODO
+                    context.startActivity(Intent(context, DeviceAddActivity::class.java))
                 }
             )
         }
@@ -294,7 +295,7 @@ fun DeviceCard(
             .height(150.dp),
         padding = XPadding.all(10),
         onClick = {
-            val intent = Intent(context, DeviceActivity::class.java)
+            val intent = Intent(context, DeviceDetailsActivity::class.java)
             context.startActivity(intent)
         }
     ) {
