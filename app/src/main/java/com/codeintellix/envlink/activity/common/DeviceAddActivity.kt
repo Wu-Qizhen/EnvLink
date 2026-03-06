@@ -77,6 +77,7 @@ import com.codeintellix.envlink.activity.theme.OrangeRed
 import com.codeintellix.envlink.activity.theme.WhiteGray
 import com.codeintellix.envlink.data.device.DeviceViewModel
 import com.codeintellix.envlink.data.device.DeviceViewModelFactory
+import com.codeintellix.envlink.entity.device.ConnectionState
 
 /**
  * 代码不注释，同事两行泪！（给！爷！写！）
@@ -225,9 +226,17 @@ class DeviceAddActivity : ComponentActivity() {
                                         .fillMaxWidth(0.5f)
                                 )
                                 Spacer(modifier = Modifier.height(15.dp))
+
                                 if (hasPermissions) {
+                                    val statusText = when (connectionState) {
+                                        is ConnectionState.Idle -> if (isScanning) "设备搜索中" else "搜索完成"
+                                        is ConnectionState.Connecting -> "正在连接设备"
+                                        is ConnectionState.Connected -> "设备连接成功"
+                                        is ConnectionState.Failed -> "连接失败"
+                                        ConnectionState.Disconnected -> "设备已断开"
+                                    }
                                     Text(
-                                        text = "设备搜索中",
+                                        text = statusText,
                                         fontSize = 16.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = BlackGray
@@ -238,6 +247,37 @@ class DeviceAddActivity : ComponentActivity() {
                                         color = LightGreen
                                     )
                                     Spacer(modifier = Modifier.height(15.dp))
+
+                                    // 主要操作按钮
+                                    val buttonText = when (connectionState) {
+                                        is ConnectionState.Idle -> if (isScanning) "停止搜索" else "重新搜索"
+                                        is ConnectionState.Connecting -> "取消"
+                                        is ConnectionState.Connected -> "下一步"
+                                        is ConnectionState.Failed -> "重试"
+                                        ConnectionState.Disconnected -> "重新搜索"
+                                    }
+                                    // TODO
+                                    val onClick = when (connectionState) {
+                                        is ConnectionState.Idle -> {
+                                            if (isScanning) viewModel.stopScan() else viewModel.startBleScan()
+                                        }
+
+                                        is ConnectionState.Connecting -> {
+                                            viewModel.disconnectDevice()
+                                        }
+
+                                        is ConnectionState.Connected -> {
+                                            this@DeviceAddActivity.finish()
+                                        }
+
+                                        is ConnectionState.Failed -> {
+                                            viewModel.retryConnection()
+                                        }
+
+                                        ConnectionState.Disconnected -> {
+                                            if (isScanning) viewModel.stopScan() else viewModel.startBleScan()
+                                        }
+                                    }
                                     XCard.Lively(
                                         modifier = Modifier
                                             .fillMaxWidth()
@@ -248,29 +288,22 @@ class DeviceAddActivity : ComponentActivity() {
                                             activeBackground = LightGreen.withAlpha(0.8f)
                                         ),
                                         padding = XPadding.horizontal(15).vertical(10),
-                                        onClick = {
-                                            if (isScanning) {
-                                                viewModel.stopScan()
-                                            } else {
-                                                viewModel.startBleScan()
-                                            }
-                                        }
+                                        onClick = { onClick }
                                     ) {
                                         Row(
                                             modifier = Modifier.fillMaxSize(),
                                             horizontalArrangement = Arrangement.Center,
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            if (isScanning) {
+                                            if (isScanning || connectionState is ConnectionState.Connecting) {
                                                 CircularProgressIndicator(
                                                     modifier = Modifier.size(30.dp),
                                                     color = Color.White
                                                 )
                                                 Spacer(modifier = Modifier.width(10.dp))
                                             }
-
                                             Text(
-                                                text = if (isScanning) "搜索中" else "重新搜索",
+                                                text = buttonText,
                                                 fontSize = 16.sp,
                                                 fontWeight = FontWeight.Bold,
                                                 color = Color.White,
@@ -295,7 +328,7 @@ class DeviceAddActivity : ComponentActivity() {
                         }
                     }
 
-                    if (hasPermissions) {
+                    if (connectionState is ConnectionState.Idle || connectionState is ConnectionState.Disconnected) {
                         items(scanResults) { device ->
                             DeviceItem(
                                 device = device,
@@ -307,6 +340,16 @@ class DeviceAddActivity : ComponentActivity() {
                                         Toast.LENGTH_SHORT
                                     ).show()
                                     viewModel.addDevice(device)
+                                }
+                            )
+                        }
+                    } else {
+                        item {
+                            ConnectionCard(
+                                connectionState = connectionState,
+                                onBackToList = {
+                                    // TODO
+                                    viewModel.disconnectDevice()
                                 }
                             )
                         }
@@ -377,6 +420,55 @@ class DeviceAddActivity : ComponentActivity() {
                     text = "添加",
                     onClick = onAddClick
                 )
+            }
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    @Composable
+    fun ConnectionCard(
+        connectionState: ConnectionState,
+        onBackToList: () -> Unit,
+        modifier: Modifier = Modifier
+    ) {
+        MicaCard(
+            modifier = modifier,
+            padding = XPadding.vertical(20).horizontal(15)
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                when (connectionState) {
+                    is ConnectionState.Connecting -> {
+                        Text("正在建立连接", fontSize = 14.sp, color = Gray)
+                    }
+
+                    is ConnectionState.Connected -> {
+                        Text("已成功连接到设备", fontSize = 14.sp, color = LightGreen)
+                        Text(
+                            connectionState.device.name ?: "未知设备",
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    is ConnectionState.Failed -> {
+                        Text(
+                            "错误详情: ${connectionState.error}",
+                            fontSize = 14.sp,
+                            color = OrangeRed
+                        )
+                        Spacer(modifier = Modifier.height(10.dp))
+                        XItem.Button(
+                            text = "返回列表",
+                            onClick = onBackToList,
+                            color = XColorGroup(
+                                background = Gray,
+                                activeBackground = Gray.withAlpha(0.8f),
+                                content = Color.White
+                            )
+                        )
+                    }
+
+                    else -> {}
+                }
             }
         }
     }

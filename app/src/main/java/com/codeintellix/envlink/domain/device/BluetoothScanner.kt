@@ -72,8 +72,7 @@ class BluetoothScanner(context: Context) {
     }*/
 }
 
-/*
-class BluetoothScanner(private val context: Context) {
+/*class BluetoothScanner(private val context: Context) {
     private val bluetoothManager: BluetoothManager =
         context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
     private val bluetoothAdapter: BluetoothAdapter? = bluetoothManager.adapter
