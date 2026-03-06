@@ -5,6 +5,7 @@ import android.content.Context
 import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
+import android.net.Uri
 import android.os.Looper
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -158,10 +159,19 @@ class WeatherViewModel : ViewModel() {
      */
     private suspend fun requestWeather(lat: Double, lon: Double): Pair<Weather, String>? =
         withContext(Dispatchers.IO) {
-            val url =
-                "https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon¤t=temperature_2m,weather_code&timezone=auto"
+            val url = Uri.Builder()
+                .scheme("https")
+                .authority("api.open-meteo.com")
+                .path("v1/forecast")
+                .appendQueryParameter("latitude", lat.toString())
+                .appendQueryParameter("longitude", lon.toString())
+                .appendQueryParameter("current", "temperature_2m,weather_code")
+                .appendQueryParameter("timezone", "auto")
+                .build()
+                .toString()
             val request = Request.Builder().url(url).build()
 
+            // Log.d("Open-Meteo", "Requesting weather from $url")
             try {
                 val response = client.newCall(request).execute()
                 if (!response.isSuccessful) return@withContext null

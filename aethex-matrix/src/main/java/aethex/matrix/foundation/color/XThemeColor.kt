@@ -50,7 +50,7 @@ object XThemeColor {
      * Created by Wu Qizhen on 2025.7.22
      */
     // val THEME_COLORS = generateThemeColors(Color(255, 255, 255, 255)) // 不建议使用动态生成方式
-    private val THEME_COLORS: XColor = THEME_PURPLE
+    private val THEME_COLORS: XColor = THEME_GREEN
 
     /**
      * 通过主题颜色生成色阶

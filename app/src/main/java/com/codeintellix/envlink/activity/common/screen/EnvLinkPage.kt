@@ -5,6 +5,8 @@ import aethex.matrix.foundation.color.XColorGroup
 import aethex.matrix.foundation.property.XPadding
 import aethex.matrix.ui.XHeader
 import aethex.matrix.ui.XIcon
+import aethex.matrix.ui.XTextField
+import android.content.Context
 import android.content.Intent
 import android.widget.Toast
 import androidx.compose.animation.core.Animatable
@@ -13,6 +15,7 @@ import androidx.compose.animation.core.VectorConverter
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -27,6 +30,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -43,6 +48,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
@@ -50,6 +57,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -64,6 +73,7 @@ import com.codeintellix.envlink.activity.theme.BlackGray
 import com.codeintellix.envlink.activity.theme.Gray
 import com.codeintellix.envlink.activity.theme.LightGreen
 import com.codeintellix.envlink.activity.theme.WhiteGray
+import com.codeintellix.envlink.data.house.HouseNameManager
 import com.codeintellix.envlink.data.weather.WeatherViewModel
 import com.codeintellix.envlink.entity.weather.WeatherState
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
@@ -161,6 +171,7 @@ fun EnvLinkPage() {
                 verticalArrangement = Arrangement.spacedBy(15.dp)
             ) {
                 HeaderArea(
+                    context = context,
                     weatherState = weatherState,
                     onRefresh = {
                         // 点击刷新时，如果权限未授予，先请求权限；否则直接刷新
@@ -261,70 +272,128 @@ fun EnvLinkPage() {
  */
 @Composable
 fun HeaderArea(
+    context: Context,
     weatherState: WeatherState,
     onRefresh: () -> Unit
 ) {
+    val houseNameManager = remember { HouseNameManager(context) }
+    var houseName by remember { mutableStateOf(houseNameManager.getHouseName()) }
+    var isEditing by remember { mutableStateOf(false) }
+    val focusRequester = remember { FocusRequester() }
+
     Row(
         modifier = Modifier
-            .clickVfx(onClick = { onRefresh() })
             .fillMaxWidth()
             .padding(horizontal = 20.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = "碧桂园",
-            fontSize = 24.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = BlackGray
-        )
-        // 天气显示区域
-        when (weatherState) {
-            is WeatherState.Loading -> {
-                // 加载中显示进度条
-                CircularProgressIndicator(
-                    modifier = Modifier.size(30.dp),
-                    color = LightGreen,
-                    strokeWidth = 2.dp
-                )
-            }
-
-            is WeatherState.Success -> {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Image(
-                        painter = painterResource(id = weatherState.weather.icon),
-                        contentDescription = null,
-                        modifier = Modifier.size(30.dp)
-                    )
-                    Spacer(modifier = Modifier.width(5.dp))
+        if (isEditing) {
+            // 编辑模式：显示文本框
+            XTextField.Outline(
+                label = "房屋名称",
+                value = houseName,
+                onValueChange = { houseName = it },
+                placeholder = {
                     Text(
-                        text = weatherState.temperature,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = BlackGray
-                    )
-                }
-            }
-
-            is WeatherState.Error -> {
-                // 错误时显示默认图标和简短提示，点击可重试
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.weather_cloudy), // 备选图标
-                        contentDescription = null,
-                        tint = Gray,
-                        modifier = Modifier.size(30.dp)
-                    )
-                    Spacer(modifier = Modifier.width(5.dp))
-                    Text(
-                        text = "--°",
-                        fontSize = 16.sp,
+                        text = "请输入房屋名称",
                         color = Gray
                     )
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .focusRequester(focusRequester),
+                singleLine = true,
+                maxLines = 1,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = {
+                    if (houseName.trim().isBlank()) {
+                        houseName = HouseNameManager.DEFAULT_HOUSE_NAME
+                    }
+                    // 保存到 SharedPreferences 并退出编辑
+                    houseNameManager.saveHouseName(houseName.trim())
+                    isEditing = false
+                }),
+                color = XColorGroup(
+                    background = Color.Transparent,
+                    activeBackground = Color.Transparent,
+                    content = BlackGray,
+                    activeContent = LightGreen,
+                    border = LightGreen,
+                    activeBorder = LightGreen
+                )
+            )
+            // 自动获取焦点
+            LaunchedEffect(Unit) {
+                focusRequester.requestFocus()
+            }
+        } else {
+            Text(
+                text = houseName,
+                fontSize = 24.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = BlackGray,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier
+                    .clickVfx(
+                        onClick = {
+                            Toast.makeText(context, "长按编辑", Toast.LENGTH_SHORT).show()
+                        },
+                        onLongClick = { isEditing = true }
+                    )
+                    .basicMarquee()
+            )
+            // 天气显示区域
+            when (weatherState) {
+                is WeatherState.Loading -> {
+                    // 加载中显示进度条
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(30.dp),
+                        color = LightGreen,
+                        strokeWidth = 4.dp
+                    )
+                }
+
+                is WeatherState.Success -> {
+                    Row(
+                        modifier = Modifier.clickVfx(onClick = { onRefresh() }),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Image(
+                            painter = painterResource(id = weatherState.weather.icon),
+                            contentDescription = null,
+                            modifier = Modifier.size(30.dp)
+                        )
+                        Spacer(modifier = Modifier.width(5.dp))
+                        Text(
+                            text = weatherState.temperature,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = BlackGray
+                        )
+                    }
+                }
+
+                is WeatherState.Error -> {
+                    // 错误时显示默认图标和简短提示，点击可重试
+                    Row(
+                        modifier = Modifier.clickVfx(onClick = { onRefresh() }),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Image(
+                            painter = painterResource(id = R.drawable.weather_cloudy), // 备选图标
+                            contentDescription = null,
+                            modifier = Modifier.size(30.dp)
+                        )
+                        Spacer(modifier = Modifier.width(5.dp))
+                        Text(
+                            text = "--°",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = BlackGray
+                        )
+                    }
                 }
             }
         }

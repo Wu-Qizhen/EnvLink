@@ -10,6 +10,8 @@ import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
@@ -19,6 +21,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 
 /**
@@ -150,6 +153,61 @@ object XTextField {
                 focusedIndicatorColor = Color.Transparent,
                 unfocusedIndicatorColor = Color.Transparent,
             )
+        )
+    }
+
+    @Composable
+    fun Outline(
+        modifier: Modifier = Modifier,
+        label: String,
+        value: String,
+        onValueChange: (String) -> Unit,
+        placeholder: @Composable () -> Unit = {},
+        color: XColorGroup = XColorGroup(
+            background = XColors.BG_DARK_M,
+            activeBackground = Color.Transparent,
+            content = Color.White,
+            border = Color.Transparent,
+            activeBorder = XThemeColor.BASE
+        ),
+        borderRadius: Int = 15,
+        singleLine: Boolean = false,
+        maxLines: Int = if (singleLine) 1 else Int.MAX_VALUE,
+        keyboardOptions: KeyboardOptions,
+        keyboardActions: KeyboardActions
+    ) {
+        OutlinedTextField(
+            label = {
+                Text(
+                    text = label,
+                    color = color.content ?: Color.White
+                )
+            },
+            value = value,
+            onValueChange = onValueChange,
+            placeholder = {
+                placeholder()
+            },
+            textStyle = TextStyle(
+                color = color.content ?: Color.White, // 会覆盖 focusedTextColor / unfocusedTextColor
+            ),
+            modifier = modifier,
+            singleLine = singleLine,
+            maxLines = maxLines,
+            shape = RoundedCornerShape(borderRadius.dp),
+            colors = TextFieldDefaults.colors(
+                focusedContainerColor = color.activeBackground ?: Color.Transparent,
+                unfocusedContainerColor = color.background ?: XColors.BG_DARK_M,
+                focusedLabelColor = color.activeBorder ?: XThemeColor.BASE,
+                unfocusedLabelColor = color.content ?: Color.White,
+                cursorColor = color.activeBorder ?: XThemeColor.BASE,
+                focusedIndicatorColor = color.activeBorder ?: XThemeColor.BASE,
+                unfocusedIndicatorColor = color.activeBorder ?: XThemeColor.BASE,
+                focusedTextColor = color.content ?: Color.White,
+                unfocusedTextColor = color.content ?: Color.White
+            ),
+            keyboardOptions = keyboardOptions,
+            keyboardActions = keyboardActions
         )
     }
 }
