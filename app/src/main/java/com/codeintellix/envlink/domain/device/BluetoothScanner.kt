@@ -1,13 +1,13 @@
 package com.codeintellix.envlink.domain.device
 
+import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothManager
-import android.content.BroadcastReceiver
+import android.bluetooth.le.ScanCallback
+import android.bluetooth.le.ScanResult
+import android.bluetooth.le.ScanSettings
 import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
-import android.os.Build
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -17,6 +17,62 @@ import kotlinx.coroutines.flow.callbackFlow
  * Elegance is not a dispensable luxury but a quality that decides between success and failure!
  * Created by Wu Qizhen on 2026.03.05
  */
+class BluetoothScanner(context: Context) {
+    private val bluetoothManager: BluetoothManager =
+        context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+    private val bluetoothAdapter: BluetoothAdapter? = bluetoothManager.adapter
+    private val bluetoothLeScanner = bluetoothAdapter?.bluetoothLeScanner
+
+    fun startBleScan(deviceNameFilter: String? = null): Flow<BluetoothDevice> = callbackFlow {
+        if (bluetoothAdapter == null || !bluetoothAdapter.isEnabled) {
+            close()
+            return@callbackFlow
+        }
+
+        val scanCallback = object : ScanCallback() {
+            @SuppressLint("MissingPermission")
+            override fun onScanResult(callbackType: Int, result: ScanResult?) {
+                result?.device?.let { device ->
+                    // 根据设备名称过滤
+                    val shouldSend = if (deviceNameFilter != null) {
+                        device.name?.contains(deviceNameFilter, ignoreCase = true) == true
+                    } else {
+                        true
+                    }
+
+                    if (shouldSend) {
+                        trySend(device)
+                    }
+                }
+            }
+        }
+
+        // 扫描设置
+        val settings = ScanSettings.Builder()
+            .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
+            .build()
+
+        try {
+            bluetoothLeScanner?.startScan(null, settings, scanCallback)
+        } catch (_: SecurityException) {
+            close()
+            return@callbackFlow
+        }
+
+        awaitClose {
+            try {
+                bluetoothLeScanner?.stopScan(scanCallback)
+            } catch (_: SecurityException) {
+            }
+        }
+    }
+
+    /*fun stopBleScan() {
+        // 停止扫描的方法会在 awaitClose 中自动调用，无需额外实现
+    }*/
+}
+
+/*
 class BluetoothScanner(private val context: Context) {
     private val bluetoothManager: BluetoothManager =
         context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
@@ -86,4 +142,4 @@ class BluetoothScanner(private val context: Context) {
             // 忽略
         }
     }
-}
+}*/

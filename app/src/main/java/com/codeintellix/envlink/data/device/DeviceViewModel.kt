@@ -2,7 +2,11 @@ package com.codeintellix.envlink.data.device
 
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothDevice
-import android.bluetooth.BluetoothSocket
+import android.bluetooth.BluetoothGatt
+import android.bluetooth.BluetoothGattCallback
+import android.bluetooth.BluetoothGattCharacteristic
+import android.bluetooth.BluetoothGattDescriptor
+import android.bluetooth.BluetoothProfile
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -16,15 +20,10 @@ import com.codeintellix.envlink.entity.device.ConnectionState
 import com.codeintellix.envlink.entity.device.Device
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeout
-import java.io.IOException
-import java.lang.reflect.Method
 import java.util.UUID
 
 /**
@@ -38,11 +37,280 @@ class DeviceViewModel(
     context: Context
 ) : ViewModel() {
     private val appContext: Context = context.applicationContext
+    private var scanJob: Job? = null          // 扫描协程的 Job
+    private var gatt: BluetoothGatt? = null   // BLE Gatt 客户端
+
+    // BLE 服务与特征 UUID
+    // TODO
+    private val serviceUuid = UUID.fromString("0000FFE0-0000-1000-8000-00805F9B34FB")
+    private val txCharUuid = UUID.fromString("0000FFE1-0000-1000-8000-00805F9B34FB") // 手机 -> 模块（写）
+    private val rxCharUuid = UUID.fromString("0000FFE1-0000-1000-8000-00805F9B34FB") // 模块 -> 手机（通知）
+    private val cccdUuid = UUID.fromString("00002902-0000-1000-8000-00805F9B34FB") // 不变
+
+    // 保存找到的写特征和通知特征，供后续通信使用
+    private var writeCharacteristic: BluetoothGattCharacteristic? = null
+    private var notifyCharacteristic: BluetoothGattCharacteristic? = null
+
+    // 状态 Flow
+    private val _scanResults = MutableStateFlow<List<BluetoothDevice>>(emptyList())
+    val scanResults: StateFlow<List<BluetoothDevice>> = _scanResults
+
+    private val _isScanning = MutableStateFlow(false)
+    val isScanning: StateFlow<Boolean> = _isScanning
+
+    private val _connectionState = MutableStateFlow<ConnectionState>(ConnectionState.Idle)
+    val connectionState: StateFlow<ConnectionState> = _connectionState
+
+    private val _receivedData = MutableStateFlow("")
+    val receivedData: StateFlow<String> = _receivedData
+
+    private val discoveredDevices = mutableSetOf<BluetoothDevice>()
+
+    // 广播接收器，用于监听配对状态变化
+    private val bondStateReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if (intent.action == BluetoothDevice.ACTION_BOND_STATE_CHANGED) {
+                val device = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    intent.getParcelableExtra(
+                        BluetoothDevice.EXTRA_DEVICE,
+                        BluetoothDevice::class.java
+                    )
+                } else {
+                    @Suppress("DEPRECATION")
+                    intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
+                }
+                val bondState = intent.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE, -1)
+                when (bondState) {
+                    BluetoothDevice.BOND_BONDED -> {
+                        // 配对成功，可自动连接或提示
+                        device?.let { connectToDevice(it) }
+                        Toast.makeText(appContext, "配对成功", Toast.LENGTH_SHORT).show()
+                    }
+
+                    BluetoothDevice.BOND_NONE -> {
+                        Toast.makeText(appContext, "配对失败", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        }
+    }
+
+    init {
+        // 注册配对状态广播（非必需，但保留有助于调试）
+        val filter = IntentFilter(BluetoothDevice.ACTION_BOND_STATE_CHANGED)
+        appContext.registerReceiver(bondStateReceiver, filter)
+    }
+
+    override fun onCleared() {
+        appContext.unregisterReceiver(bondStateReceiver)
+        disconnectDevice() // 断开并释放 GATT 资源
+        super.onCleared()
+    }
+
+    // BLE 扫描
+    fun startBleScan() {
+        scanJob?.cancel()
+        scanJob = viewModelScope.launch {
+            _isScanning.value = true
+            discoveredDevices.clear()
+            try {
+                bluetoothScanner.startBleScan()
+                    .catch { e -> /* 可处理错误，如权限不足等 */ }
+                    .collect { device ->
+                        discoveredDevices.add(device)
+                        _scanResults.value = discoveredDevices.toList()
+                    }
+            } finally {
+                _isScanning.value = false
+            }
+        }
+    }
+
+    fun stopScan() {
+        scanJob?.cancel()
+        scanJob = null
+        // 可调用 bluetoothScanner.stopBleScan()
+    }
+
+    // 添加设备（保存到数据库并连接）
+    fun addDevice(device: BluetoothDevice) {
+        viewModelScope.launch {
+            // 保存到数据库
+            val entity = try {
+                Device(
+                    address = device.address,
+                    name = device.name ?: "未知设备"
+                )
+            } catch (_: SecurityException) {
+                Device(
+                    address = device.address,
+                    name = "未知设备"
+                )
+            }
+            repository.addDevice(entity)
+
+            // 直接连接（系统会自动处理配对弹窗）
+            connectToDevice(device)
+        }
+    }
+
+    // 连接设备（BLE GATT）
+    @SuppressLint("MissingPermission")
+    fun connectToDevice(device: BluetoothDevice) {
+        // 断开现有连接
+        disconnectDevice()
+
+        viewModelScope.launch(Dispatchers.Main) {
+            _connectionState.value = ConnectionState.Connecting
+
+            // 停止经典蓝牙扫描（如果有），避免影响连接
+            // bluetoothScanner.cancelDiscovery()
+
+            // 建立 GATT 连接
+            gatt =
+                device.connectGatt(appContext, false, gattCallback, BluetoothDevice.TRANSPORT_LE)
+        }
+    }
+
+    // GATT 回调
+    private val gattCallback = object : BluetoothGattCallback() {
+        @SuppressLint("MissingPermission")
+        override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
+            when (newState) {
+                BluetoothProfile.STATE_CONNECTED -> {
+                    // 连接成功，开始发现服务
+                    gatt.discoverServices()
+                }
+
+                BluetoothProfile.STATE_DISCONNECTED -> {
+                    // 更新状态，并清理资源
+                    _connectionState.value = ConnectionState.Disconnected
+                    gatt.close()
+                    this@DeviceViewModel.gatt = null
+                    writeCharacteristic = null
+                    notifyCharacteristic = null
+                }
+            }
+        }
+
+        @SuppressLint("MissingPermission")
+        override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
+            if (status == BluetoothGatt.GATT_SUCCESS) {
+                val service = gatt.getService(serviceUuid)
+                if (service != null) {
+                    // 获取写特征
+                    writeCharacteristic = service.getCharacteristic(txCharUuid)
+                    // 获取通知特征
+                    val rxChar = service.getCharacteristic(rxCharUuid)
+                    if (rxChar != null) {
+                        // 启用通知
+                        gatt.setCharacteristicNotification(rxChar, true)
+                        // 配置 CCCD 描述符以接收通知
+                        val descriptor = rxChar.getDescriptor(cccdUuid)
+                        descriptor?.let {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                gatt.writeDescriptor(
+                                    it,
+                                    BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
+                                )
+                            } else {
+                                @Suppress("DEPRECATION")
+                                it.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
+                                @Suppress("DEPRECATION")
+                                gatt.writeDescriptor(it)
+                            }
+                        }
+                        notifyCharacteristic = rxChar
+                    }
+                    _connectionState.value = ConnectionState.Connected(gatt.device)
+                } else {
+                    _connectionState.value = ConnectionState.Failed("未找到指定服务")
+                }
+            } else {
+                _connectionState.value = ConnectionState.Failed("服务发现失败")
+            }
+        }
+
+        override fun onCharacteristicChanged(
+            gatt: BluetoothGatt,
+            characteristic: BluetoothGattCharacteristic
+        ) {
+            // 接收到设备发来的数据
+            val value = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                // Android 13+ 会通过重载方法提供 value 参数
+                // 这个方法不会被调用
+                null
+            } else {
+                @Suppress("DEPRECATION")
+                characteristic.value
+            }
+            if (value != null) {
+                val received = String(value, Charsets.UTF_8)
+                _receivedData.value = _receivedData.value + received
+            }
+        }
+
+        override fun onCharacteristicWrite(
+            gatt: BluetoothGatt,
+            characteristic: BluetoothGattCharacteristic,
+            status: Int
+        ) {
+            if (status != BluetoothGatt.GATT_SUCCESS) {
+                _connectionState.value = ConnectionState.Failed("发送失败")
+            }
+        }
+    }
+
+    // 发送数据
+    @SuppressLint("MissingPermission")
+    fun sendData(data: String) {
+        val gatt = this.gatt
+        val char = writeCharacteristic
+        if (gatt != null && char != null) {
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    gatt.writeCharacteristic(
+                        char,
+                        data.toByteArray(Charsets.UTF_8),
+                        BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
+                    )
+                } else {
+                    @Suppress("DEPRECATION")
+                    char.value = data.toByteArray(Charsets.UTF_8)
+                    @Suppress("DEPRECATION")
+                    gatt.writeCharacteristic(char)
+                }
+            } catch (_: Exception) {
+                _connectionState.value = ConnectionState.Failed("发送异常")
+            }
+        } else {
+            _connectionState.value = ConnectionState.Failed("设备未连接")
+        }
+    }
+
+    // 断开连接
+    @SuppressLint("MissingPermission")
+    fun disconnectDevice() {
+        gatt?.disconnect()
+        gatt?.close()
+        gatt = null
+        writeCharacteristic = null
+        notifyCharacteristic = null
+        _connectionState.value = ConnectionState.Disconnected
+    }
+}
+
+/*class DeviceViewModel(
+    private val repository: DeviceRepository,
+    private val bluetoothScanner: BluetoothScanner,
+    context: Context
+) : ViewModel() {
+    private val appContext: Context = context.applicationContext
     private var scanJob: Job? = null // 扫描协程的 Job
     private var listenerJob: Job? = null
 
     // 预先定义的配对码（应与 STM32 端 HC-05 设置的 PIN 码一致）
-    private val presetPin = "McEnvCtr"
+    private val presetPin = "1234"
     private val sppUuid = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
 
     private val _scanResults = MutableStateFlow<List<BluetoothDevice>>(emptyList())
@@ -109,7 +377,9 @@ class DeviceViewModel(
             discoveredDevices.clear()
             try {
                 bluetoothScanner.startScan()
-                    .catch { e -> /* 处理错误 */ }
+                    .catch { e ->
+                        // 处理错误
+                    }
                     .collect { device ->
                         discoveredDevices.add(device)
                         _scanResults.value = discoveredDevices.toList()
@@ -281,4 +551,4 @@ class DeviceViewModel(
             bluetoothSocket = null
         }
     }
-}
+}*/

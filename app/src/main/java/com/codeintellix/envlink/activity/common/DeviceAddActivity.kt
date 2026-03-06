@@ -127,7 +127,7 @@ class DeviceAddActivity : ComponentActivity() {
         ) { permissions ->
             hasPermissions = permissions.values.all { it }
             if (hasPermissions) {
-                viewModel.startScan()
+                viewModel.startBleScan()
             } else {
                 Toast.makeText(context, "需要权限才能连接设备", Toast.LENGTH_SHORT).show()
             }
@@ -140,7 +140,7 @@ class DeviceAddActivity : ComponentActivity() {
             }
             if (allGranted) {
                 hasPermissions = true
-                viewModel.startScan()
+                viewModel.startBleScan()
             } else {
                 permissionLauncher.launch(permissionsToRequest)
             }
@@ -149,6 +149,7 @@ class DeviceAddActivity : ComponentActivity() {
         // 扫描结果
         val isScanning by viewModel.isScanning.collectAsState()
         val scanResults by viewModel.scanResults.collectAsState()
+        val connectionState by viewModel.connectionState.collectAsState()
 
         Box(
             modifier = Modifier.fillMaxSize()
@@ -251,7 +252,7 @@ class DeviceAddActivity : ComponentActivity() {
                                             if (isScanning) {
                                                 viewModel.stopScan()
                                             } else {
-                                                viewModel.startScan()
+                                                viewModel.startBleScan()
                                             }
                                         }
                                     ) {
@@ -300,6 +301,11 @@ class DeviceAddActivity : ComponentActivity() {
                                 device = device,
                                 onAddClick = {
                                     // TODO
+                                    Toast.makeText(
+                                        context,
+                                        "开始配对",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
                                     viewModel.addDevice(device)
                                 }
                             )
