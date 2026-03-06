@@ -62,6 +62,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -151,6 +152,8 @@ class DeviceAddActivity : ComponentActivity() {
         val isScanning by viewModel.isScanning.collectAsState()
         val scanResults by viewModel.scanResults.collectAsState()
         val connectionState by viewModel.connectionState.collectAsState()
+        // val currentDevice = viewModel.currentDevice
+        var deviceName by remember { mutableStateOf("微环境控制器") }
 
         Box(
             modifier = Modifier.fillMaxSize()
@@ -220,7 +223,15 @@ class DeviceAddActivity : ComponentActivity() {
                                 shadowAlpha = 0.15f
                             ) {
                                 Image(
-                                    painter = painterResource(R.drawable.illustration_cabinet),
+                                    painter = painterResource(
+                                        when (connectionState) {
+                                            is ConnectionState.Idle -> if (isScanning) R.drawable.illustration_plant_scan else R.drawable.illustration_plant_scanned
+                                            is ConnectionState.Connecting -> R.drawable.illustration_plant_connecting
+                                            is ConnectionState.Connected -> R.drawable.illustration_plant_connected
+                                            is ConnectionState.Failed -> R.drawable.illustration_plant_failed
+                                            ConnectionState.Disconnected -> R.drawable.illustration_plant_failed
+                                        }
+                                    ),
                                     contentDescription = null,
                                     modifier = Modifier
                                         .fillMaxWidth(0.5f)
@@ -230,8 +241,8 @@ class DeviceAddActivity : ComponentActivity() {
                                 if (hasPermissions) {
                                     val statusText = when (connectionState) {
                                         is ConnectionState.Idle -> if (isScanning) "设备搜索中" else "搜索完成"
-                                        is ConnectionState.Connecting -> "正在连接设备"
-                                        is ConnectionState.Connected -> "设备连接成功"
+                                        is ConnectionState.Connecting -> "正在配对设备"
+                                        is ConnectionState.Connected -> "设备添加成功"
                                         is ConnectionState.Failed -> "连接失败"
                                         ConnectionState.Disconnected -> "设备已断开"
                                     }
@@ -248,34 +259,30 @@ class DeviceAddActivity : ComponentActivity() {
                                     )
                                     Spacer(modifier = Modifier.height(15.dp))
 
-                                    // 主要操作按钮
-                                    val buttonText = when (connectionState) {
-                                        is ConnectionState.Idle -> if (isScanning) "停止搜索" else "重新搜索"
-                                        is ConnectionState.Connecting -> "取消"
-                                        is ConnectionState.Connected -> "下一步"
-                                        is ConnectionState.Failed -> "重试"
-                                        ConnectionState.Disconnected -> "重新搜索"
-                                    }
-                                    // TODO
-                                    val onClick = when (connectionState) {
+                                    // 主要操作按钮：动态文本和点击逻辑
+                                    val (buttonText, onClickAction) = when (connectionState) {
                                         is ConnectionState.Idle -> {
-                                            if (isScanning) viewModel.stopScan() else viewModel.startBleScan()
+                                            if (isScanning) "停止搜索" to { viewModel.stopScan() }
+                                            else "重新搜索" to { viewModel.startBleScan() }
                                         }
 
                                         is ConnectionState.Connecting -> {
-                                            viewModel.disconnectDevice()
+                                            "取消" to { viewModel.disconnectDevice() }
                                         }
 
                                         is ConnectionState.Connected -> {
-                                            this@DeviceAddActivity.finish()
+                                            "查看设备列表" to {
+                                                // 当前先关闭页面
+                                                this@DeviceAddActivity.finish()
+                                            }
                                         }
 
                                         is ConnectionState.Failed -> {
-                                            viewModel.retryConnection()
+                                            "重试" to { viewModel.retryConnection() }
                                         }
 
                                         ConnectionState.Disconnected -> {
-                                            if (isScanning) viewModel.stopScan() else viewModel.startBleScan()
+                                            "重新搜索" to { viewModel.startBleScan() }
                                         }
                                     }
                                     XCard.Lively(
@@ -288,7 +295,7 @@ class DeviceAddActivity : ComponentActivity() {
                                             activeBackground = LightGreen.withAlpha(0.8f)
                                         ),
                                         padding = XPadding.horizontal(15).vertical(10),
-                                        onClick = { onClick }
+                                        onClick = onClickAction
                                     ) {
                                         Row(
                                             modifier = Modifier.fillMaxSize(),
@@ -328,30 +335,47 @@ class DeviceAddActivity : ComponentActivity() {
                         }
                     }
 
+                    // 根据连接状态显示不同内容
                     if (connectionState is ConnectionState.Idle || connectionState is ConnectionState.Disconnected) {
-                        items(scanResults) { device ->
-                            DeviceItem(
-                                device = device,
-                                onAddClick = {
-                                    // TODO
-                                    Toast.makeText(
-                                        context,
-                                        "开始配对",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
-                                    viewModel.addDevice(device)
+                        // 空闲 / 断开状态：显示设备列表（包括空状态）
+                        if (scanResults.isEmpty()) {
+                            item {
+                                MicaCard(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    padding = XPadding.all(20)
+                                ) {
+                                    Text(
+                                        text = "没有找到设备，请确保设备已开启并靠近手机",
+                                        fontSize = 14.sp,
+                                        color = Gray,
+                                        textAlign = TextAlign.Center,
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
                                 }
-                            )
+                            }
+                        } else {
+                            items(scanResults) { device ->
+                                DeviceItem(
+                                    device = device,
+                                    onAddClick = {
+                                        deviceName =
+                                            device.name.replace("PlantGuard_", "微环境控制器 ")
+
+                                        Toast.makeText(
+                                            context,
+                                            "开始配对",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+
+                                        viewModel.addDevice(device)
+                                    }
+                                )
+                            }
                         }
                     } else {
+                        // 连接中 / 成功 / 失败状态：显示当前设备的连接卡片
                         item {
-                            ConnectionCard(
-                                connectionState = connectionState,
-                                onBackToList = {
-                                    // TODO
-                                    viewModel.disconnectDevice()
-                                }
-                            )
+                            ConnectionCard(deviceName = deviceName)
                         }
                     }
 
@@ -424,52 +448,28 @@ class DeviceAddActivity : ComponentActivity() {
         }
     }
 
-    @SuppressLint("MissingPermission")
     @Composable
     fun ConnectionCard(
-        connectionState: ConnectionState,
-        onBackToList: () -> Unit,
-        modifier: Modifier = Modifier
+        deviceName: String
     ) {
         MicaCard(
-            modifier = modifier,
+            modifier = Modifier.fillMaxWidth(),
             padding = XPadding.vertical(20).horizontal(15)
         ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                when (connectionState) {
-                    is ConnectionState.Connecting -> {
-                        Text("正在建立连接", fontSize = 14.sp, color = Gray)
-                    }
-
-                    is ConnectionState.Connected -> {
-                        Text("已成功连接到设备", fontSize = 14.sp, color = LightGreen)
-                        Text(
-                            connectionState.device.name ?: "未知设备",
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-
-                    is ConnectionState.Failed -> {
-                        Text(
-                            "错误详情: ${connectionState.error}",
-                            fontSize = 14.sp,
-                            color = OrangeRed
-                        )
-                        Spacer(modifier = Modifier.height(10.dp))
-                        XItem.Button(
-                            text = "返回列表",
-                            onClick = onBackToList,
-                            color = XColorGroup(
-                                background = Gray,
-                                activeBackground = Gray.withAlpha(0.8f),
-                                content = Color.White
-                            )
-                        )
-                    }
-
-                    else -> {}
-                }
-            }
+            // 设备图标
+            Image(
+                painter = painterResource(id = R.drawable.img_plant),
+                contentDescription = null,
+                modifier = Modifier.size(80.dp)
+            )
+            Spacer(modifier = Modifier.height(15.dp))
+            // 设备名称
+            Text(
+                text = deviceName,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = BlackGray
+            )
         }
     }
 }
