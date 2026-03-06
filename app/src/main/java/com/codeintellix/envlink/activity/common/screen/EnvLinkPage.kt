@@ -28,12 +28,16 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -49,6 +53,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.codeintellix.envlink.R
 import com.codeintellix.envlink.activity.common.DeviceAddActivity
 import com.codeintellix.envlink.activity.common.DeviceDetailsActivity
@@ -59,6 +64,11 @@ import com.codeintellix.envlink.activity.theme.BlackGray
 import com.codeintellix.envlink.activity.theme.Gray
 import com.codeintellix.envlink.activity.theme.LightGreen
 import com.codeintellix.envlink.activity.theme.WhiteGray
+import com.codeintellix.envlink.data.weather.WeatherViewModel
+import com.codeintellix.envlink.entity.weather.WeatherState
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.isGranted
+import com.google.accompanist.permissions.rememberPermissionState
 import kotlinx.coroutines.launch
 
 /**
@@ -66,12 +76,35 @@ import kotlinx.coroutines.launch
  * Elegance is not a dispensable luxury but a quality that decides between success and failure!
  * Created by Wu Qizhen on 2026.01.10
  */
+@OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun EnvLinkPage() {
     val context = LocalContext.current
     val scrollState = rememberScrollState()
     val isScrolled by remember {
         derivedStateOf { scrollState.value > 0 }
+    }
+
+    // 天气 ViewModel
+    val weatherViewModel: WeatherViewModel = viewModel()
+    val weatherState by weatherViewModel.weatherState.collectAsState()
+
+    // 权限状态
+    val permissionState = rememberPermissionState(
+        android.Manifest.permission.ACCESS_COARSE_LOCATION
+    )
+
+    // 首次加载标记，避免重复请求
+    var isFirstLoad by remember { mutableStateOf(true) }
+
+    // 当权限状态变化或首次加载时触发天气获取
+    LaunchedEffect(permissionState.status, isFirstLoad) {
+        if (permissionState.status.isGranted && isFirstLoad) {
+            weatherViewModel.fetchWeather(context)
+            isFirstLoad = false
+        } else if (!permissionState.status.isGranted && isFirstLoad) {
+            permissionState.launchPermissionRequest()
+        }
     }
 
     // 拖拽回弹效果
@@ -127,7 +160,17 @@ fun EnvLinkPage() {
                     .weight(1f),
                 verticalArrangement = Arrangement.spacedBy(15.dp)
             ) {
-                HeaderArea()
+                HeaderArea(
+                    weatherState = weatherState,
+                    onRefresh = {
+                        // 点击刷新时，如果权限未授予，先请求权限；否则直接刷新
+                        if (permissionState.status.isGranted) {
+                            weatherViewModel.refreshWeather(context)
+                        } else {
+                            permissionState.launchPermissionRequest()
+                        }
+                    }
+                )
 
                 Box(modifier = Modifier.fillMaxWidth()) {
                     ScrollableRowTab(
@@ -217,9 +260,13 @@ fun EnvLinkPage() {
  * 头部区域
  */
 @Composable
-fun HeaderArea() {
+fun HeaderArea(
+    weatherState: WeatherState,
+    onRefresh: () -> Unit
+) {
     Row(
         modifier = Modifier
+            .clickVfx(onClick = { onRefresh() })
             .fillMaxWidth()
             .padding(horizontal = 20.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -231,21 +278,55 @@ fun HeaderArea() {
             fontWeight = FontWeight.SemiBold,
             color = BlackGray
         )
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Image(
-                painter = painterResource(id = R.drawable.weather_cloudy),
-                contentDescription = null,
-                modifier = Modifier.size(30.dp)
-            )
-            Spacer(modifier = Modifier.width(5.dp))
-            Text(
-                text = "28°",
-                fontSize = 16.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = BlackGray
-            )
+        // 天气显示区域
+        when (weatherState) {
+            is WeatherState.Loading -> {
+                // 加载中显示进度条
+                CircularProgressIndicator(
+                    modifier = Modifier.size(30.dp),
+                    color = LightGreen,
+                    strokeWidth = 2.dp
+                )
+            }
+
+            is WeatherState.Success -> {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Image(
+                        painter = painterResource(id = weatherState.weather.icon),
+                        contentDescription = null,
+                        modifier = Modifier.size(30.dp)
+                    )
+                    Spacer(modifier = Modifier.width(5.dp))
+                    Text(
+                        text = weatherState.temperature,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = BlackGray
+                    )
+                }
+            }
+
+            is WeatherState.Error -> {
+                // 错误时显示默认图标和简短提示，点击可重试
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.weather_cloudy), // 备选图标
+                        contentDescription = null,
+                        tint = Gray,
+                        modifier = Modifier.size(30.dp)
+                    )
+                    Spacer(modifier = Modifier.width(5.dp))
+                    Text(
+                        text = "--°",
+                        fontSize = 16.sp,
+                        color = Gray
+                    )
+                }
+            }
         }
     }
 }
