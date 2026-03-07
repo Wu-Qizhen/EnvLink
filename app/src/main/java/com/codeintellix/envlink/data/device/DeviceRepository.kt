@@ -15,6 +15,8 @@ class DeviceRepository(private val deviceDao: DeviceDao) {
 
     suspend fun addDevice(device: Device) = deviceDao.insertDevice(device)
 
+    suspend fun updateDevice(device: Device) = deviceDao.updateDevice(device)
+
     suspend fun removeDevice(address: String) = deviceDao.deleteDevice(address)
 
     companion object {

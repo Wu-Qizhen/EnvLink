@@ -5,7 +5,6 @@ import aethex.matrix.foundation.color.XColorGroup
 import aethex.matrix.foundation.property.XPadding
 import aethex.matrix.ui.XHeader
 import aethex.matrix.ui.XIcon
-import aethex.matrix.ui.XTextField
 import android.content.Context
 import android.content.Intent
 import android.widget.Toast
@@ -49,7 +48,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
@@ -66,6 +64,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.codeintellix.envlink.R
 import com.codeintellix.envlink.activity.common.DeviceAddActivity
 import com.codeintellix.envlink.activity.common.DeviceDetailsActivity
+import com.codeintellix.envlink.activity.common.widget.AliveTextField
 import com.codeintellix.envlink.activity.common.widget.FadeEdge
 import com.codeintellix.envlink.activity.common.widget.MicaCard
 import com.codeintellix.envlink.activity.common.widget.ScrollableRowTab
@@ -290,21 +289,11 @@ fun HeaderArea(
     ) {
         if (isEditing) {
             // 编辑模式：显示文本框
-            XTextField.Outline(
+            AliveTextField(
                 label = "房屋名称",
+                placeholder = "请输入房屋名称",
                 value = houseName,
-                onValueChange = { houseName = it },
-                placeholder = {
-                    Text(
-                        text = "请输入房屋名称",
-                        color = Gray
-                    )
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .focusRequester(focusRequester),
-                singleLine = true,
-                maxLines = 1,
+                focusRequester = focusRequester,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(onDone = {
                     if (houseName.trim().isBlank()) {
@@ -314,15 +303,7 @@ fun HeaderArea(
                     houseNameManager.saveHouseName(houseName.trim())
                     isEditing = false
                 }),
-                color = XColorGroup(
-                    background = Color.Transparent,
-                    activeBackground = Color.Transparent,
-                    content = BlackGray,
-                    activeContent = LightGreen,
-                    border = LightGreen,
-                    activeBorder = LightGreen
-                )
-            )
+            ) { houseName = it }
             // 自动获取焦点
             LaunchedEffect(Unit) {
                 focusRequester.requestFocus()

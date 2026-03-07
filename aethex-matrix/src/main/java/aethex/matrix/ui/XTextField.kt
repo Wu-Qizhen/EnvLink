@@ -84,6 +84,9 @@ object XTextField {
             placeholder = {
                 placeholder()
             },
+            textStyle = TextStyle(
+                color = color.content ?: Color.White, // 会覆盖 focusedTextColor / unfocusedTextColor
+            ),
             modifier = modifier
                 .heightIn(min = 60.dp)
                 .fillMaxWidth()
@@ -140,6 +143,9 @@ object XTextField {
             placeholder = {
                 placeholder()
             },
+            textStyle = TextStyle(
+                color = color.content ?: Color.White, // 会覆盖 focusedTextColor / unfocusedTextColor
+            ),
             modifier = modifier,
             singleLine = singleLine,
             maxLines = maxLines,
@@ -148,10 +154,12 @@ object XTextField {
                 focusedContainerColor = color.activeBackground ?: Color.Transparent,
                 unfocusedContainerColor = color.background ?: XColors.BG_DARK_M,
                 focusedLabelColor = color.activeBorder ?: XThemeColor.BASE,
-                unfocusedLabelColor = Color.White,
+                unfocusedLabelColor = color.content ?: Color.White,
                 cursorColor = color.activeBorder ?: XThemeColor.BASE,
-                focusedIndicatorColor = Color.Transparent,
-                unfocusedIndicatorColor = Color.Transparent,
+                focusedIndicatorColor = color.activeBorder ?: XThemeColor.BASE,
+                unfocusedIndicatorColor = color.activeBorder ?: XThemeColor.BASE,
+                focusedTextColor = color.content ?: Color.White,
+                unfocusedTextColor = color.content ?: Color.White
             )
         )
     }

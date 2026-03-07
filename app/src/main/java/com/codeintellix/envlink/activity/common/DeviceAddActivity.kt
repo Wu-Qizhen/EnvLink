@@ -69,6 +69,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.codeintellix.envlink.R
+import com.codeintellix.envlink.activity.common.widget.AliveTextField
 import com.codeintellix.envlink.activity.common.widget.MicaCard
 import com.codeintellix.envlink.activity.theme.BlackGray
 import com.codeintellix.envlink.activity.theme.Gray
@@ -154,6 +155,12 @@ class DeviceAddActivity : ComponentActivity() {
         val connectionState by viewModel.connectionState.collectAsState()
         // val currentDevice = viewModel.currentDevice
         var deviceName by remember { mutableStateOf("微环境控制器") }
+        val addedDevices by viewModel.addedDevices.collectAsState()
+        val addedAddresses = remember(addedDevices) { addedDevices.map { it.address }.toSet() }
+
+        // 命名模式状态
+        var namingMode by remember { mutableStateOf(false) }
+        var deviceNameInput by remember { mutableStateOf("") }
 
         Box(
             modifier = Modifier.fillMaxSize()
@@ -234,7 +241,7 @@ class DeviceAddActivity : ComponentActivity() {
                                     ),
                                     contentDescription = null,
                                     modifier = Modifier
-                                        .fillMaxWidth(0.5f)
+                                        .height(200.dp)
                                 )
                                 Spacer(modifier = Modifier.height(15.dp))
 
@@ -242,7 +249,7 @@ class DeviceAddActivity : ComponentActivity() {
                                     val statusText = when (connectionState) {
                                         is ConnectionState.Idle -> if (isScanning) "设备搜索中" else "搜索完成"
                                         is ConnectionState.Connecting -> "正在配对设备"
-                                        is ConnectionState.Connected -> "设备添加成功"
+                                        is ConnectionState.Connected -> if (namingMode) "给设备起个名字" else "设备添加成功"
                                         is ConnectionState.Failed -> "连接失败"
                                         ConnectionState.Disconnected -> "设备已断开"
                                     }
@@ -252,11 +259,21 @@ class DeviceAddActivity : ComponentActivity() {
                                         fontWeight = FontWeight.Bold,
                                         color = BlackGray
                                     )
-                                    Text(
-                                        text = "请将手机尽量靠近要添加的设备",
-                                        fontSize = 14.sp,
-                                        color = LightGreen
-                                    )
+                                    if (namingMode) {
+                                        AliveTextField(
+                                            label = "设备名称",
+                                            placeholder = "请输入设备名称",
+                                            value = deviceNameInput,
+                                        ) {
+                                            deviceNameInput = it
+                                        }
+                                    } else {
+                                        Text(
+                                            text = "请将手机尽量靠近要添加的设备",
+                                            fontSize = 14.sp,
+                                            color = LightGreen
+                                        )
+                                    }
                                     Spacer(modifier = Modifier.height(15.dp))
 
                                     // 主要操作按钮：动态文本和点击逻辑
@@ -271,9 +288,30 @@ class DeviceAddActivity : ComponentActivity() {
                                         }
 
                                         is ConnectionState.Connected -> {
-                                            "查看设备列表" to {
-                                                // 当前先关闭页面
-                                                this@DeviceAddActivity.finish()
+                                            if (namingMode) {
+                                                "确定" to {
+                                                    val connectedState =
+                                                        connectionState as? ConnectionState.Connected
+                                                    connectedState?.let {
+                                                        if (deviceNameInput.trim().isBlank()) {
+                                                            viewModel.updateDeviceName(
+                                                                it.device.address,
+                                                                deviceName
+                                                            )
+                                                        } else {
+                                                            viewModel.updateDeviceName(
+                                                                it.device.address,
+                                                                deviceNameInput.trim().take(30)
+                                                            )
+                                                        }
+                                                    }
+                                                    this@DeviceAddActivity.finish()
+                                                }
+                                            } else {
+                                                "下一步" to {
+                                                    namingMode = true
+                                                    deviceNameInput = deviceName
+                                                }
                                             }
                                         }
 
@@ -357,6 +395,7 @@ class DeviceAddActivity : ComponentActivity() {
                             items(scanResults) { device ->
                                 DeviceItem(
                                     device = device,
+                                    isAdded = device.address in addedAddresses,
                                     onAddClick = {
                                         deviceName =
                                             device.name.replace("PlantGuard_", "微环境控制器 ")
@@ -372,7 +411,7 @@ class DeviceAddActivity : ComponentActivity() {
                                 )
                             }
                         }
-                    } else {
+                    } else if (!namingMode) {
                         // 连接中 / 成功 / 失败状态：显示当前设备的连接卡片
                         item {
                             ConnectionCard(deviceName = deviceName)
@@ -391,6 +430,7 @@ class DeviceAddActivity : ComponentActivity() {
     @Composable
     fun DeviceItem(
         device: BluetoothDevice,
+        isAdded: Boolean,
         onAddClick: () -> Unit
     ) {
         MicaCard(
@@ -431,19 +471,44 @@ class DeviceAddActivity : ComponentActivity() {
                     }
                 }
 
-                XItem.Button(
-                    modifier = Modifier.align(Alignment.CenterEnd),
-                    color = XColorGroup(
-                        background = LightGreen,
-                        activeBackground = LightGreen.withAlpha(0.8f),
-                        border = null,
-                        activeBorder = null,
-                        content = Color.White,
-                        activeContent = Color.White
-                    ),
-                    text = "添加",
-                    onClick = onAddClick
-                )
+                if (isAdded) {
+                    XItem.Button(
+                        modifier = Modifier.align(Alignment.CenterEnd),
+                        color =
+                            XColorGroup(
+                                background = Gray.withAlpha(0.3f),
+                                activeBackground = Gray.withAlpha(0.3f),
+                                border = null,
+                                activeBorder = null,
+                                content = Gray,
+                                activeContent = Gray
+                            ),
+                        text = "已添加",
+                        onClick = {
+                            Toast.makeText(
+                                this@DeviceAddActivity,
+                                "设备已添加",
+                                Toast.LENGTH_SHORT
+                            )
+                                .show()
+                        }
+                    )
+                } else {
+                    XItem.Button(
+                        modifier = Modifier.align(Alignment.CenterEnd),
+                        color =
+                            XColorGroup(
+                                background = LightGreen,
+                                activeBackground = LightGreen.withAlpha(0.8f),
+                                border = null,
+                                activeBorder = null,
+                                content = Color.White,
+                                activeContent = Color.White
+                            ),
+                        text = "添加",
+                        onClick = onAddClick
+                    )
+                }
             }
         }
     }

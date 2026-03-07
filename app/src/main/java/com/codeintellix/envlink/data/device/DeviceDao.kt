@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Update
 import com.codeintellix.envlink.entity.device.Device
 import kotlinx.coroutines.flow.Flow
 
@@ -16,6 +17,9 @@ import kotlinx.coroutines.flow.Flow
 interface DeviceDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertDevice(device: Device)
+
+    @Update
+    suspend fun updateDevice(device: Device)
 
     @Query("SELECT * FROM devices ORDER BY lastConnected DESC")
     fun getAllDevices(): Flow<List<Device>>

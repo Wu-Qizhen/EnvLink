@@ -74,6 +74,9 @@ class DeviceViewModel(
     private var _currentDevice: BluetoothDevice? = null
     val currentDevice: BluetoothDevice? get() = _currentDevice
 
+    private val _addedDevices = MutableStateFlow<List<Device>>(emptyList())
+    val addedDevices: StateFlow<List<Device>> = _addedDevices
+
     private val discoveredDevices = mutableSetOf<BluetoothDevice>()
     private var pendingDeviceAddress: String? = null
 
@@ -220,6 +223,13 @@ class DeviceViewModel(
             addAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED)
         }
         appContext.registerReceiver(bluetoothReceiver, filter)
+
+        // 收集已添加设备列表
+        viewModelScope.launch {
+            repository.getAllDevices().collect { devices ->
+                _addedDevices.value = devices
+            }
+        }
     }
 
     override fun onCleared() {
@@ -377,6 +387,12 @@ class DeviceViewModel(
 
     fun retryConnection() {
         _currentDevice?.let { connectToDevice(it) }
+    }
+
+    fun updateDeviceName(address: String, newName: String) {
+        viewModelScope.launch {
+            repository.updateDevice(Device(address, newName))
+        }
     }
 }
 
