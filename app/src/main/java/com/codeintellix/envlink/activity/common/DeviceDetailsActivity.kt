@@ -283,7 +283,7 @@ class DeviceDetailsActivity : ComponentActivity() {
                     onRefresh = {
                         isRefreshing = true
                         viewModel.refresh()
-                        // 延迟关闭刷新状态（实际应在收到数据后关闭，这里简化）
+                        // 延迟关闭（实际应在数据返回后关闭）
                         viewModel.viewModelScope.launch {
                             delay(1000)
                             isRefreshing = false
@@ -292,8 +292,10 @@ class DeviceDetailsActivity : ComponentActivity() {
                     state = pullToRefreshState,
                     modifier = Modifier.fillMaxSize(),
                     indicator = {
+                        val displayProgress =
+                            if (isRefreshing) 1f else pullToRefreshState.distanceFraction
                         ScaleRefreshIndicator(
-                            isRefreshing = isRefreshing,
+                            progress = displayProgress,
                             modifier = Modifier.align(Alignment.TopCenter)
                         )
                     }

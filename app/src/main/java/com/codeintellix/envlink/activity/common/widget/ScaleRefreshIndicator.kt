@@ -27,35 +27,22 @@ import com.codeintellix.envlink.activity.theme.LightGreen
 @Composable
 fun ScaleRefreshIndicator(
     modifier: Modifier = Modifier,
-    isRefreshing: Boolean,
+    progress: Float,
     color: Color = LightGreen
 ) {
-    // 使用动画实现从小变大的效果
-    // 当 isRefreshing 为 true 时，目标值为 1f，否则为 0f
-    val scale by animateFloatAsState(
-        targetValue = if (isRefreshing) 1f else 0f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy, // 弹性阻尼，产生“弹跳”感
-            stiffness = Spring.StiffnessLow // 低刚度，让动画更明显
-        ),
-        label = "RefreshIndicatorScale"
-    )
-
-    // 只有当 scale 大于 0 时才绘制，避免占据布局空间
-    if (scale > 0) {
+    if (progress > 0) {
         Box(
-            modifier = modifier // 确保位于顶部
-                .padding(top = 16.dp) // 距离顶部的距离
-                .scale(scale) // 应用缩放动画
-                .alpha(scale) // 透明度随缩放变化，更自然
-                .background(color, CircleShape) // 圆形背景
-                .size(48.dp), // 指示器整体大小
+            modifier = modifier
+                .padding(top = 16.dp)
+                .scale(progress)
+                .alpha(progress)
+                .background(color, CircleShape)
+                .size(48.dp),
             contentAlignment = Alignment.Center
         ) {
-            // 中间的加载动画
             CircularProgressIndicator(
                 modifier = Modifier.size(24.dp),
-                color = Color.White, // 加载条颜色设为白色，与背景形成对比
+                color = Color.White,
                 strokeWidth = 2.5.dp
             )
         }

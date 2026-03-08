@@ -25,6 +25,7 @@ import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -161,6 +162,8 @@ class DeviceAddActivity : ComponentActivity() {
         // 命名模式状态
         var namingMode by remember { mutableStateOf(false) }
         var deviceNameInput by remember { mutableStateOf("") }
+        var selectedRoom by remember { mutableStateOf("阳台") }
+        val rooms = listOf("阳台", "客厅", "卧室", "厨房", "餐厅", "卫生间")
 
         Box(
             modifier = Modifier.fillMaxSize()
@@ -267,6 +270,37 @@ class DeviceAddActivity : ComponentActivity() {
                                         ) {
                                             deviceNameInput = it
                                         }
+                                        Spacer(modifier = Modifier.height(15.dp))
+                                        Text(
+                                            text = "归属房间",
+                                            fontSize = 16.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = BlackGray,
+                                            modifier = Modifier.align(Alignment.Start)
+                                        )
+                                        Spacer(modifier = Modifier.height(10.dp))
+                                        FlowRow(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(5.dp), // 水平间距
+                                            verticalArrangement = Arrangement.spacedBy(5.dp) // 垂直间距
+                                        ) {
+                                            rooms.forEach { room ->
+                                                XItem.Button(
+                                                    color = XColorGroup(
+                                                        background = if (selectedRoom == room) LightGreen else Color.Transparent,
+                                                        activeBackground = if (selectedRoom == room) LightGreen.withAlpha(
+                                                            0.8f
+                                                        ) else WhiteGray,
+                                                        border = null,
+                                                        activeBorder = null,
+                                                        content = if (selectedRoom == room) Color.White else LightGreen,
+                                                        activeContent = if (selectedRoom == room) Color.White else LightGreen
+                                                    ),
+                                                    text = room,
+                                                    onClick = { selectedRoom = room }
+                                                )
+                                            }
+                                        }
                                     } else {
                                         Text(
                                             text = "请将手机尽量靠近要添加的设备",
@@ -293,17 +327,17 @@ class DeviceAddActivity : ComponentActivity() {
                                                     val connectedState =
                                                         connectionState as? ConnectionState.Connected
                                                     connectedState?.let {
-                                                        if (deviceNameInput.trim().isBlank()) {
-                                                            viewModel.updateDeviceName(
-                                                                it.device.address,
+                                                        val finalName =
+                                                            if (deviceNameInput.trim().isBlank()) {
                                                                 deviceName
-                                                            )
-                                                        } else {
-                                                            viewModel.updateDeviceName(
-                                                                it.device.address,
+                                                            } else {
                                                                 deviceNameInput.trim().take(30)
-                                                            )
-                                                        }
+                                                            }
+                                                        viewModel.updateDevice(
+                                                            it.device.address,
+                                                            finalName,
+                                                            selectedRoom
+                                                        )
                                                     }
                                                     this@DeviceAddActivity.finish()
                                                 }

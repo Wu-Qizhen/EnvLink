@@ -389,9 +389,9 @@ class DeviceAddViewModel(
         _currentDevice?.let { connectToDevice(it) }
     }
 
-    fun updateDeviceName(address: String, newName: String) {
+    fun updateDevice(address: String, name: String, room: String = "阳台") {
         viewModelScope.launch {
-            repository.updateDevice(Device(address, newName))
+            repository.updateDevice(Device(address, name, room))
         }
     }
 }
