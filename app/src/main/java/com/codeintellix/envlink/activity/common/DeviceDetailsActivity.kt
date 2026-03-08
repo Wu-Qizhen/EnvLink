@@ -197,6 +197,8 @@ class DeviceDetailsActivity : ComponentActivity() {
             factory = DeviceDetailViewModelFactory(application, deviceAddress)
         )
 
+        val device by viewModel.device.collectAsState()
+
         // 观察数据
         val sensorData by viewModel.sensorDataList.collectAsState()
         val connectionState by viewModel.connectionState.collectAsState()
@@ -258,7 +260,7 @@ class DeviceDetailsActivity : ComponentActivity() {
                     .padding(systemBarPadding)
             ) {
                 XHeader.BackText(
-                    text = stringResource(R.string.microenvironment_controller),
+                    text = device?.name ?: stringResource(R.string.microenvironment_controller),
                     textColor = Color.Black,
                     fontWeight = FontWeight.Normal,
                     fontSize = 28,

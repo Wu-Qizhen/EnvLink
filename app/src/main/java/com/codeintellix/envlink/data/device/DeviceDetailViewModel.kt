@@ -21,7 +21,6 @@ import com.codeintellix.envlink.activity.theme.SkyBlue
 import com.codeintellix.envlink.activity.theme.Yellow
 import com.codeintellix.envlink.activity.theme.YellowGreen
 import com.codeintellix.envlink.entity.device.ConnectionState
-import com.codeintellix.envlink.data.device.DeviceRepository
 import com.codeintellix.envlink.entity.device.Device
 import com.codeintellix.envlink.entity.protocol.CommandType
 import com.codeintellix.envlink.entity.sensor.SensorData
@@ -54,12 +53,16 @@ class DeviceDetailViewModel(
         UUID.fromString("0000FFE1-0000-1000-8000-00805F9B34FB")  // 通知特征（通常与写相同）
     private val cccdUuid = UUID.fromString("00002902-0000-1000-8000-00805F9B34FB")
 
+    // 设备信息
+    private val _device = MutableStateFlow<Device?>(null)
+    val device: StateFlow<Device?> = _device.asStateFlow()
+
     // 连接状态
     private val _connectionState = MutableStateFlow<ConnectionState>(ConnectionState.Idle)
     val connectionState: StateFlow<ConnectionState> = _connectionState.asStateFlow()
 
     // 传感器数据列表（用于 UI 展示）
-    private val _sensorDataList = MutableStateFlow<List<SensorDataVO>>(emptyList())
+    private val _sensorDataList = MutableStateFlow(getDefaultSensorData())
     val sensorDataList: StateFlow<List<SensorDataVO>> = _sensorDataList.asStateFlow()
 
     // 原始接收数据（调试用）
@@ -77,7 +80,148 @@ class DeviceDetailViewModel(
     private var isPollingActive = false
 
     init {
+        // 初始化时从 Device 实体加载最新传感器数据
+        loadLatestSensorData()
         connect()
+    }
+
+    // 获取默认传感器数据，确保 UI 一直展示
+    private fun getDefaultSensorData(): List<SensorDataVO> {
+        return listOf(
+            SensorDataVO(
+                title = "环境温度",
+                value = "--",
+                unit = "℃",
+                status = "未知",
+                statusColor = OrangeRed,
+                progress = 0.5f,
+                icon = R.drawable.ic_thermometer,
+                iconColor = listOf(
+                    LightGreen,
+                    YellowGreen
+                )
+            ),
+            SensorDataVO(
+                title = "空气湿度",
+                value = "--",
+                unit = "%",
+                status = "未知",
+                statusColor = OrangeRed,
+                progress = 0.5f,
+                icon = R.drawable.ic_water,
+                iconColor = listOf(
+                    SkyBlue,
+                    DarkBlue
+                )
+            ),
+            SensorDataVO(
+                title = "光照强度",
+                value = "--",
+                unit = "Lux",
+                status = "未知",
+                statusColor = OrangeRed,
+                progress = 0.5f,
+                icon = R.drawable.ic_sunny,
+                iconColor = listOf(
+                    Yellow,
+                    OrangeYellow
+                )
+            ),
+            SensorDataVO(
+                title = "土壤湿度",
+                value = "--",
+                unit = "%",
+                status = "未知",
+                statusColor = OrangeRed,
+                progress = 0.5f,
+                icon = R.drawable.ic_moisture,
+                iconColor = listOf(
+                    OrangeYellow,
+                    OrangeRed
+                )
+            )
+        )
+    }
+
+    // 从 Device 实体加载最新传感器数据和设备信息
+    private fun loadLatestSensorData() {
+        viewModelScope.launch {
+            try {
+                // 从数据库获取设备信息
+                repository.getAllDevices().collect { devices ->
+                    val device = devices.find { it.address == deviceAddress }
+                    if (device != null) {
+                        // 更新设备信息
+                        _device.value = device
+
+                        // 如果有最新传感器数据，解析并更新 UI
+                        if (device.latestSensorData.isNotEmpty()) {
+                            // 解析 JSON 字符串为 SensorData
+                            val sensorData =
+                                gson.fromJson(device.latestSensorData, SensorData::class.java)
+                            // 转换为 SensorDataVO 列表并更新状态
+                            val sensorDataVOList = listOf(
+                                SensorDataVO(
+                                    title = "环境温度",
+                                    value = sensorData.temperature.toInt().toString(),
+                                    unit = "℃",
+                                    status = "正常",
+                                    statusColor = LightGreen,
+                                    progress = sensorData.temperature / 50f,
+                                    icon = R.drawable.ic_thermometer,
+                                    iconColor = listOf(
+                                        LightGreen,
+                                        YellowGreen
+                                    )
+                                ),
+                                SensorDataVO(
+                                    title = "空气湿度",
+                                    value = sensorData.humidity.toInt().toString(),
+                                    unit = "%",
+                                    status = "正常",
+                                    statusColor = LightGreen,
+                                    progress = sensorData.humidity / 100f,
+                                    icon = R.drawable.ic_water,
+                                    iconColor = listOf(
+                                        SkyBlue,
+                                        DarkBlue
+                                    )
+                                ),
+                                SensorDataVO(
+                                    title = "光照强度",
+                                    value = sensorData.lightIntensity.toString(),
+                                    unit = "Lux",
+                                    status = "正常",
+                                    statusColor = LightGreen,
+                                    progress = sensorData.lightIntensity.toFloat() / 2000f,
+                                    icon = R.drawable.ic_sunny,
+                                    iconColor = listOf(
+                                        Yellow,
+                                        OrangeYellow
+                                    )
+                                ),
+                                SensorDataVO(
+                                    title = "土壤湿度",
+                                    value = sensorData.soilMoisture.toInt().toString(),
+                                    unit = "%",
+                                    status = "正常",
+                                    statusColor = LightGreen,
+                                    progress = sensorData.soilMoisture / 100f,
+                                    icon = R.drawable.ic_moisture,
+                                    iconColor = listOf(
+                                        OrangeYellow,
+                                        OrangeRed
+                                    )
+                                )
+                            )
+                            _sensorDataList.value = sensorDataVOList
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("DeviceDetail", "加载最新传感器数据失败", e)
+            }
+        }
     }
 
     @SuppressLint("MissingPermission")
@@ -273,18 +417,25 @@ class DeviceDetailViewModel(
 
         // 将 SensorData 转换为 JSON 字符串
         val sensorDataJson = gson.toJson(sensorData)
-        
+
         // 更新设备信息
         viewModelScope.launch {
             try {
-                // 直接更新设备信息，使用默认值填充其他字段
-                repository.updateDevice(Device(
-                    address = deviceAddress,
-                    name = "", // 名称会在实际更新时被覆盖
-                    room = "", // 房间会在实际更新时被覆盖
-                    lastConnectedTime = System.currentTimeMillis(),
-                    latestSensorData = sensorDataJson
-                ))
+                // 获取当前设备信息
+                val currentDevice = _device.value
+                if (currentDevice != null) {
+                    // 使用实际字段内容进行更新
+                    repository.updateDevice(
+                        Device(
+                            address = deviceAddress,
+                            name = currentDevice.name,
+                            room = currentDevice.room,
+                            lastConnectedTime = System.currentTimeMillis(),
+                            createTime = currentDevice.createTime,
+                            latestSensorData = sensorDataJson
+                        )
+                    )
+                }
             } catch (e: Exception) {
                 Log.e("DeviceDetail", "更新传感器数据失败", e)
             }
