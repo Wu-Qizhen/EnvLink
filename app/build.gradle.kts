@@ -53,6 +53,7 @@ dependencies {
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     implementation(libs.okhttp)
+    implementation(libs.gson)
     // implementation(libs.play.services.location)
     implementation(libs.accompanist.permissions)
     // implementation(libs.accompanist.swiperefresh)

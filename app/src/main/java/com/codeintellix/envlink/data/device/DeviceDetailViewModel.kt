@@ -21,8 +21,12 @@ import com.codeintellix.envlink.activity.theme.SkyBlue
 import com.codeintellix.envlink.activity.theme.Yellow
 import com.codeintellix.envlink.activity.theme.YellowGreen
 import com.codeintellix.envlink.entity.device.ConnectionState
+import com.codeintellix.envlink.data.device.DeviceRepository
+import com.codeintellix.envlink.entity.device.Device
 import com.codeintellix.envlink.entity.protocol.CommandType
+import com.codeintellix.envlink.entity.sensor.SensorData
 import com.codeintellix.envlink.entity.sensor.SensorDataVO
+import com.google.gson.Gson
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -40,6 +44,8 @@ class DeviceDetailViewModel(
     context: Context
 ) : ViewModel() {
     private val appContext: Context = context.applicationContext
+    private val repository = DeviceRepository.getInstance(appContext)
+    private val gson = Gson()
 
     // BLE 相关常量（与 BT24 模块匹配）
     private val serviceUuid = UUID.fromString("0000FFE0-0000-1000-8000-00805F9B34FB")
@@ -256,6 +262,33 @@ class DeviceDetailViewModel(
         val temperature = temperatureRaw / 10.0f
         val humidity = humidityRaw / 10.0f
         val light = lightRaw.toFloat()
+
+        // 构建 SensorData 对象
+        val sensorData = SensorData(
+            soilMoisture = soilMoisture,
+            temperature = temperature,
+            humidity = humidity,
+            lightIntensity = light.toInt()
+        )
+
+        // 将 SensorData 转换为 JSON 字符串
+        val sensorDataJson = gson.toJson(sensorData)
+        
+        // 更新设备信息
+        viewModelScope.launch {
+            try {
+                // 直接更新设备信息，使用默认值填充其他字段
+                repository.updateDevice(Device(
+                    address = deviceAddress,
+                    name = "", // 名称会在实际更新时被覆盖
+                    room = "", // 房间会在实际更新时被覆盖
+                    lastConnectedTime = System.currentTimeMillis(),
+                    latestSensorData = sensorDataJson
+                ))
+            } catch (e: Exception) {
+                Log.e("DeviceDetail", "更新传感器数据失败", e)
+            }
+        }
 
         // 构建 SensorDataVO 列表（与 UI 展示对应）
         val list = listOf(

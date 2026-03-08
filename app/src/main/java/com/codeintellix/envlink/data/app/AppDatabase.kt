@@ -12,7 +12,7 @@ import com.codeintellix.envlink.entity.device.Device
  * Elegance is not a dispensable luxury but a quality that decides between success and failure!
  * Created by Wu Qizhen on 2026.03.05
  */
-@Database(entities = [Device::class], version = 1)
+@Database(entities = [Device::class], version = 2)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun deviceDao(): DeviceDao
 

@@ -21,7 +21,7 @@ interface DeviceDao {
     @Update
     suspend fun updateDevice(device: Device)
 
-    @Query("SELECT * FROM devices ORDER BY lastConnected DESC")
+    @Query("SELECT * FROM devices ORDER BY lastConnectedTime DESC")
     fun getAllDevices(): Flow<List<Device>>
 
     @Query("DELETE FROM devices WHERE address = :address")

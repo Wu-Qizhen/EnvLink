@@ -18,6 +18,7 @@ import androidx.lifecycle.viewModelScope
 import com.codeintellix.envlink.domain.device.BluetoothScanner
 import com.codeintellix.envlink.entity.device.ConnectionState
 import com.codeintellix.envlink.entity.device.Device
+import com.codeintellix.envlink.entity.house.RoomType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -389,9 +390,17 @@ class DeviceAddViewModel(
         _currentDevice?.let { connectToDevice(it) }
     }
 
-    fun updateDevice(address: String, name: String, room: String = "阳台") {
+    fun updateDevice(address: String, name: String, room: String = RoomType.BALCONY.displayName) {
         viewModelScope.launch {
-            repository.updateDevice(Device(address, name, room))
+            // 直接更新设备信息，使用默认值填充其他字段
+            repository.updateDevice(
+                Device(
+                    address = address,
+                    name = name,
+                    room = room,
+                    lastConnectedTime = System.currentTimeMillis()
+                )
+            )
         }
     }
 }

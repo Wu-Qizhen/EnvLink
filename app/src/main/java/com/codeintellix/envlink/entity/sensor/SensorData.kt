@@ -6,10 +6,8 @@ package com.codeintellix.envlink.entity.sensor
  * Created by Wu Qizhen on 2026.03.08
  */
 data class SensorData(
-    val soilMoisture: Float,      // 土壤湿度（%）
-    val temperature: Float,       // 温度（℃）
-    val humidity: Float,          // 空气湿度（%）
-    val lightIntensity: Int,      // 光照强度（Lux）
-    val timestamp: Long,          // 时间戳（秒）
-    val validSensors: Int         // 有效传感器标志位
+    val soilMoisture: Float, // 土壤湿度（%）
+    val temperature: Float, // 温度（℃）
+    val humidity: Float, // 空气湿度（%）
+    val lightIntensity: Int, // 光照强度（Lux）
 )
