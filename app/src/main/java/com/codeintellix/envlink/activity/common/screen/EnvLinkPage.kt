@@ -72,8 +72,11 @@ import com.codeintellix.envlink.activity.theme.BlackGray
 import com.codeintellix.envlink.activity.theme.Gray
 import com.codeintellix.envlink.activity.theme.LightGreen
 import com.codeintellix.envlink.activity.theme.WhiteGray
+import com.codeintellix.envlink.data.device.DeviceListViewModel
+import com.codeintellix.envlink.data.device.DeviceListViewModelFactory
 import com.codeintellix.envlink.data.house.HouseNameManager
 import com.codeintellix.envlink.data.weather.WeatherViewModel
+import com.codeintellix.envlink.entity.device.Device
 import com.codeintellix.envlink.entity.weather.WeatherState
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
@@ -94,9 +97,12 @@ fun EnvLinkPage() {
         derivedStateOf { scrollState.value > 0 }
     }
 
-    // 天气 ViewModel
     val weatherViewModel: WeatherViewModel = viewModel()
     val weatherState by weatherViewModel.weatherState.collectAsState()
+    val deviceListViewModel: DeviceListViewModel = viewModel(
+        factory = DeviceListViewModelFactory(context)
+    )
+    val devices by deviceListViewModel.devices.collectAsState()
 
     // 权限状态
     val permissionState = rememberPermissionState(
@@ -212,7 +218,7 @@ fun EnvLinkPage() {
                     }
                 }
 
-                DevicesArea()
+                DevicesArea(devices = devices)
             }
         }
 
@@ -385,14 +391,14 @@ fun HeaderArea(
  * 设备区域
  */
 @Composable
-fun DevicesArea() {
+fun DevicesArea(devices: List<Device>) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 20.dp),
         verticalArrangement = Arrangement.spacedBy(15.dp)
     ) {
-        DeviceCard(
+        /*DeviceCard(
             name = "微环境控制器",
             location = "阳台",
             isOnline = true,
@@ -402,7 +408,42 @@ fun DevicesArea() {
             name = "微环境控制器",
             location = "窗台",
             isOnline = false
-        )
+        )*/
+
+        if (devices.isEmpty()) {
+            // 空状态提示
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Spacer(modifier = Modifier.height(50.dp))
+                    Image(
+                        painter = painterResource(id = R.drawable.illustration_plant_failed), // 可使用现有图标
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxWidth(0.4f)
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(
+                        text = "暂无设备，点击右上角添加",
+                        fontSize = 16.sp,
+                        color = Gray
+                    )
+                }
+            }
+        } else {
+            devices.forEach { device ->
+                DeviceCard(
+                    device = device,
+                    location = "阳台",
+                    isOnline = true, // 暂时固定在线
+                    temperature = 26,
+                    humidity = 70,
+                    light = 850,
+                    moisture = 45
+                )
+            }
+        }
     }
 }
 
@@ -446,6 +487,96 @@ fun DeviceCard(
                 Column {
                     Text(
                         text = name,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (isOnline) BlackGray else Gray
+                    )
+                    Text(
+                        text = "$location | ${if (isOnline) "在线" else "离线"}",
+                        fontSize = 14.sp,
+                        color = Gray
+                    )
+                }
+            }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 10.dp)
+                    .align(Alignment.BottomStart),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                EnvironmentIndicator(
+                    // modifier = Modifier.weight(1f),
+                    label = "温度",
+                    value = if (isOnline) temperature.toString() else "--",
+                    unit = "℃",
+                    isOnline = isOnline
+                )
+                EnvironmentIndicator(
+                    // modifier = Modifier.weight(1f),
+                    label = "湿度",
+                    value = if (isOnline) humidity.toString() else "--",
+                    unit = "%",
+                    isOnline = isOnline
+                )
+                EnvironmentIndicator(
+                    // modifier = Modifier.weight(1f),
+                    label = "光照",
+                    value = if (isOnline) light.toString() else "--",
+                    unit = "Lux",
+                    isOnline = isOnline
+                )
+                EnvironmentIndicator(
+                    // modifier = Modifier.weight(1f),
+                    label = "土壤",
+                    value = if (isOnline) moisture.toString() else "--",
+                    unit = "%",
+                    isOnline = isOnline
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun DeviceCard(
+    device: Device,
+    location: String,
+    isOnline: Boolean,
+    temperature: Int,
+    humidity: Int,
+    light: Int,
+    moisture: Int
+) {
+    val context = LocalContext.current
+    MicaCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(150.dp),
+        padding = XPadding.all(10),
+        onClick = {
+            val intent = Intent(context, DeviceDetailsActivity::class.java)
+            context.startActivity(intent)
+        }
+    ) {
+        Box(
+            modifier = Modifier.fillMaxSize()
+        ) {
+            Row(
+                modifier = Modifier.align(Alignment.TopStart),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Image(
+                    painter = painterResource(id = R.drawable.img_plant),
+                    contentDescription = null,
+                    modifier = Modifier.size(50.dp)
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                Column {
+                    Text(
+                        text = device.name,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = if (isOnline) BlackGray else Gray
