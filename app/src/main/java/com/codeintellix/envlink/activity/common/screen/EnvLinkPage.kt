@@ -78,10 +78,12 @@ import com.codeintellix.envlink.data.house.HouseNameManager
 import com.codeintellix.envlink.data.weather.WeatherViewModel
 import com.codeintellix.envlink.entity.device.Device
 import com.codeintellix.envlink.entity.house.RoomType
+import com.codeintellix.envlink.entity.sensor.SensorData
 import com.codeintellix.envlink.entity.weather.WeatherState
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
+import com.google.gson.Gson
 import kotlinx.coroutines.launch
 
 /**
@@ -435,12 +437,7 @@ fun DevicesArea(devices: List<Device>) {
             devices.forEach { device ->
                 DeviceCard(
                     device = device,
-                    location = "阳台",
                     isOnline = true, // 暂时固定在线
-                    temperature = 26,
-                    humidity = 70,
-                    light = 850,
-                    moisture = 45
                 )
             }
         }
@@ -545,14 +542,22 @@ fun DeviceCard(
 @Composable
 fun DeviceCard(
     device: Device,
-    location: String,
-    isOnline: Boolean,
-    temperature: Int,
-    humidity: Int,
-    light: Int,
-    moisture: Int
+    isOnline: Boolean
 ) {
     val context = LocalContext.current
+    val sensorData = remember(device.latestSensorData) {
+        if (device.latestSensorData.isNotEmpty()) {
+            try {
+                val gson = Gson()
+                gson.fromJson(device.latestSensorData, SensorData::class.java)
+            } catch (_: Exception) {
+                null
+            }
+        } else {
+            null
+        }
+    }
+
     MicaCard(
         modifier = Modifier
             .fillMaxWidth()
@@ -586,7 +591,7 @@ fun DeviceCard(
                         color = if (isOnline) BlackGray else Gray
                     )
                     Text(
-                        text = "$location | ${if (isOnline) "在线" else "离线"}",
+                        text = "${device.room} | ${if (isOnline) "在线" else "离线"}",
                         fontSize = 14.sp,
                         color = Gray
                     )
@@ -601,34 +606,64 @@ fun DeviceCard(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                EnvironmentIndicator(
-                    // modifier = Modifier.weight(1f),
-                    label = "温度",
-                    value = if (isOnline) temperature.toString() else "--",
-                    unit = "℃",
-                    isOnline = isOnline
-                )
-                EnvironmentIndicator(
-                    // modifier = Modifier.weight(1f),
-                    label = "湿度",
-                    value = if (isOnline) humidity.toString() else "--",
-                    unit = "%",
-                    isOnline = isOnline
-                )
-                EnvironmentIndicator(
-                    // modifier = Modifier.weight(1f),
-                    label = "光照",
-                    value = if (isOnline) light.toString() else "--",
-                    unit = "Lux",
-                    isOnline = isOnline
-                )
-                EnvironmentIndicator(
-                    // modifier = Modifier.weight(1f),
-                    label = "土壤",
-                    value = if (isOnline) moisture.toString() else "--",
-                    unit = "%",
-                    isOnline = isOnline
-                )
+                if (sensorData != null) {
+                    EnvironmentIndicator(
+                        // modifier = Modifier.weight(1f),
+                        label = "温度",
+                        value = sensorData.temperature.toInt().toString(),
+                        unit = "℃",
+                        isOnline = isOnline
+                    )
+                    EnvironmentIndicator(
+                        // modifier = Modifier.weight(1f),
+                        label = "湿度",
+                        value = sensorData.humidity.toInt().toString(),
+                        unit = "%",
+                        isOnline = isOnline
+                    )
+                    EnvironmentIndicator(
+                        // modifier = Modifier.weight(1f),
+                        label = "光照",
+                        value = sensorData.lightIntensity.toString(),
+                        unit = "Lux",
+                        isOnline = isOnline
+                    )
+                    EnvironmentIndicator(
+                        // modifier = Modifier.weight(1f),
+                        label = "土壤",
+                        value = sensorData.soilMoisture.toInt().toString(),
+                        unit = "%",
+                        isOnline = isOnline
+                    )
+                } else {
+                    EnvironmentIndicator(
+                        label = "温度",
+                        value = "--",
+                        unit = "℃",
+                        isOnline = false
+                    )
+                    EnvironmentIndicator(
+                        // modifier = Modifier.weight(1f),
+                        label = "湿度",
+                        value = "--",
+                        unit = "%",
+                        isOnline = false
+                    )
+                    EnvironmentIndicator(
+                        // modifier = Modifier.weight(1f),
+                        label = "光照",
+                        value = "--",
+                        unit = "Lux",
+                        isOnline = false
+                    )
+                    EnvironmentIndicator(
+                        // modifier = Modifier.weight(1f),
+                        label = "土壤",
+                        value = "--",
+                        unit = "%",
+                        isOnline = false
+                    )
+                }
             }
         }
     }

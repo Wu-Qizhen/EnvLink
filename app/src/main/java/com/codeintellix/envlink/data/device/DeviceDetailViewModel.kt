@@ -396,10 +396,10 @@ class DeviceDetailViewModel(
         val humidityRaw = (data[5].toInt() and 0xFF shl 8) or (data[4].toInt() and 0xFF)
         val lightRaw = (data[7].toInt() and 0xFF shl 8) or (data[6].toInt() and 0xFF)
         val status = data[8].toInt() and 0xFF
-        val timestamp = (data[12].toInt() and 0xFF shl 24) or
+        /*val timestamp = (data[12].toInt() and 0xFF shl 24) or
                 (data[11].toInt() and 0xFF shl 16) or
                 (data[10].toInt() and 0xFF shl 8) or
-                (data[9].toInt() and 0xFF)
+                (data[9].toInt() and 0xFF)*/
 
         // 转换为实际值
         val soilMoisture = soilMoistureRaw / 10.0f
