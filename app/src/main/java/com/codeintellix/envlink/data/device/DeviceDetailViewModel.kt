@@ -20,11 +20,13 @@ import com.codeintellix.envlink.activity.theme.OrangeYellow
 import com.codeintellix.envlink.activity.theme.SkyBlue
 import com.codeintellix.envlink.activity.theme.Yellow
 import com.codeintellix.envlink.activity.theme.YellowGreen
+import com.codeintellix.envlink.domain.sensor.SensorDataUtil
 import com.codeintellix.envlink.entity.device.ConnectionState
 import com.codeintellix.envlink.entity.device.Device
 import com.codeintellix.envlink.entity.protocol.CommandType
 import com.codeintellix.envlink.entity.sensor.SensorData
 import com.codeintellix.envlink.entity.sensor.SensorDataVO
+import com.codeintellix.envlink.entity.sensor.SensorStatus
 import com.google.gson.Gson
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -446,53 +448,47 @@ class DeviceDetailViewModel(
                 title = "环境温度",
                 value = temperature.toInt().toString(),
                 unit = "℃",
-                status = if ((status and 0x02) != 0) "正常" else "失效",
-                statusColor = if ((status and 0x02) != 0) LightGreen else OrangeYellow,
-                progress = temperature / 50f, // 简单映射
+                status = if ((status and 0x02) != 0) SensorDataUtil.getTemperatureStatus(temperature).label else SensorStatus.INVALID.label,
+                statusColor = if ((status and 0x02) != 0) SensorDataUtil.getTemperatureStatus(
+                    temperature
+                ).color else SensorStatus.INVALID.color,
+                progress = SensorDataUtil.mapTemperatureToProgress(temperature),
                 icon = R.drawable.ic_thermometer,
-                iconColor = listOf(
-                    LightGreen,
-                    YellowGreen
-                )
+                iconColor = listOf(LightGreen, YellowGreen)
             ),
             SensorDataVO(
                 title = "空气湿度",
                 value = humidity.toInt().toString(),
                 unit = "%",
-                status = if ((status and 0x04) != 0) "正常" else "失效",
-                statusColor = if ((status and 0x04) != 0) LightGreen else OrangeYellow,
-                progress = humidity / 100f,
+                status = if ((status and 0x04) != 0) SensorDataUtil.getHumidityStatus(humidity).label else SensorStatus.INVALID.label,
+                statusColor = if ((status and 0x04) != 0) SensorDataUtil.getHumidityStatus(humidity).color else SensorStatus.INVALID.color,
+                progress = SensorDataUtil.mapHumidityToProgress(humidity),
                 icon = R.drawable.ic_water,
-                iconColor = listOf(
-                    SkyBlue,
-                    DarkBlue
-                )
+                iconColor = listOf(SkyBlue, DarkBlue)
             ),
             SensorDataVO(
                 title = "光照强度",
                 value = light.toInt().toString(),
                 unit = "Lux",
-                status = if ((status and 0x08) != 0) "正常" else "失效",
-                statusColor = if ((status and 0x08) != 0) LightGreen else OrangeYellow,
-                progress = light / 2000f,
+                status = if ((status and 0x08) != 0) SensorDataUtil.getLightStatus(light).label else SensorStatus.INVALID.label,
+                statusColor = if ((status and 0x08) != 0) SensorDataUtil.getLightStatus(light).color else SensorStatus.INVALID.color,
+                progress = SensorDataUtil.mapLightToProgress(light),
                 icon = R.drawable.ic_sunny,
-                iconColor = listOf(
-                    Yellow,
-                    OrangeYellow
-                )
+                iconColor = listOf(Yellow, OrangeYellow)
             ),
             SensorDataVO(
                 title = "土壤湿度",
                 value = soilMoisture.toInt().toString(),
                 unit = "%",
-                status = if ((status and 0x01) != 0) "正常" else "失效",
-                statusColor = if ((status and 0x08) != 0) LightGreen else OrangeYellow,
-                progress = soilMoisture / 100f,
+                status = if ((status and 0x01) != 0) SensorDataUtil.getSoilMoistureStatus(
+                    soilMoisture
+                ).label else SensorStatus.INVALID.label,
+                statusColor = if ((status and 0x01) != 0) SensorDataUtil.getSoilMoistureStatus(
+                    soilMoisture
+                ).color else SensorStatus.INVALID.color,
+                progress = SensorDataUtil.mapSoilMoistureToProgress(soilMoisture),
                 icon = R.drawable.ic_moisture,
-                iconColor = listOf(
-                    OrangeYellow,
-                    OrangeRed
-                )
+                iconColor = listOf(OrangeYellow, OrangeRed)
             )
         )
         _sensorDataList.value = list
