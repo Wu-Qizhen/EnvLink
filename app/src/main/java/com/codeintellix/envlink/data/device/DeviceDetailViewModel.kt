@@ -186,13 +186,13 @@ class DeviceDetailViewModel(
         }
 
         when (packet.command) {
-            CommandType.CMD_ACK.value -> {
+            CommandType.CMD_ACK.cmdByte -> {
                 // 成功响应，根据原始请求命令解析数据
                 // 此处我们只关心传感器数据，所以假设是 CMD_GET_SENSOR_DATA 的响应
                 parseSensorData(packet.data)
             }
 
-            CommandType.CMD_ERROR.value -> {
+            CommandType.CMD_ERROR.cmdByte -> {
                 // 错误响应，可显示错误码
                 _connectionState.value = ConnectionState.Failed("设备返回错误")
             }

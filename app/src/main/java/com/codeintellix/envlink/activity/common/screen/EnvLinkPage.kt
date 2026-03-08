@@ -77,6 +77,7 @@ import com.codeintellix.envlink.data.device.DeviceListViewModelFactory
 import com.codeintellix.envlink.data.house.HouseNameManager
 import com.codeintellix.envlink.data.weather.WeatherViewModel
 import com.codeintellix.envlink.entity.device.Device
+import com.codeintellix.envlink.entity.house.RoomType
 import com.codeintellix.envlink.entity.weather.WeatherState
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
@@ -126,8 +127,7 @@ fun EnvLinkPage() {
     val scope = rememberCoroutineScope()
     val dragOffset = remember { Animatable(IntOffset(0, 0), IntOffset.VectorConverter) }
 
-    val tabs =
-        listOf("全屋", "阳台", "客厅", "卧室", "厨房", "餐厅", "卫生间")
+    val tabs = listOf("全屋") + RoomType.getAllNames()
     var selectedTab by remember { mutableIntStateOf(0) }
 
     Box(
@@ -450,6 +450,7 @@ fun DevicesArea(devices: List<Device>) {
 /**
  * 设备卡片
  */
+/*
 @Composable
 fun DeviceCard(
     name: String,
@@ -539,6 +540,7 @@ fun DeviceCard(
         }
     }
 }
+*/
 
 @Composable
 fun DeviceCard(

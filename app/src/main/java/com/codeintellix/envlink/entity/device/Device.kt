@@ -14,5 +14,6 @@ data class Device(
     val address: String, // MAC 地址作为主键
     val name: String,
     val room: String = "阳台",
+    // val addTime: Long = System.currentTimeMillis(),
     val lastConnected: Long = System.currentTimeMillis()
 )

@@ -81,6 +81,7 @@ import com.codeintellix.envlink.activity.theme.WhiteGray
 import com.codeintellix.envlink.data.device.DeviceAddViewModel
 import com.codeintellix.envlink.data.device.DeviceAddViewModelFactory
 import com.codeintellix.envlink.entity.device.ConnectionState
+import com.codeintellix.envlink.entity.house.RoomType
 
 /**
  * 代码不注释，同事两行泪！（给！爷！写！）
@@ -163,7 +164,7 @@ class DeviceAddActivity : ComponentActivity() {
         var namingMode by remember { mutableStateOf(false) }
         var deviceNameInput by remember { mutableStateOf("") }
         var selectedRoom by remember { mutableStateOf("阳台") }
-        val rooms = listOf("阳台", "客厅", "卧室", "厨房", "餐厅", "卫生间")
+        val rooms = RoomType.getAllNames()
 
         Box(
             modifier = Modifier.fillMaxSize()

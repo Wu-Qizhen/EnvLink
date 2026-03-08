@@ -5,7 +5,7 @@ package com.codeintellix.envlink.entity.protocol
  * Elegance is not a dispensable luxury but a quality that decides between success and failure!
  * Created by Wu Qizhen on 2026.03.08
  */
-enum class CommandType(val value: Int) {
+enum class CommandType(val cmdByte: Int) {
     CMD_GET_SENSOR_DATA(0x01), // 获取传感器数据
     CMD_GET_ACTUATOR_STATE(0x02), // 获取执行器状态
     CMD_SET_ACTUATOR(0x03), // 设置执行器
