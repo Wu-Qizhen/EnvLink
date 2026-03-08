@@ -55,6 +55,16 @@ class DeviceDetailViewModel(
         UUID.fromString("0000FFE1-0000-1000-8000-00805F9B34FB")  // 通知特征（通常与写相同）
     private val cccdUuid = UUID.fromString("00002902-0000-1000-8000-00805F9B34FB")
 
+    // 执行器 ID 常量
+    companion object {
+        const val ACTUATOR_PUMP = 0      // 水泵
+        const val ACTUATOR_FAN = 1       // 风扇
+        const val ACTUATOR_LIGHT = 2     // 补光灯
+
+        private const val MIN_REFRESH_INTERVAL = 5000L
+        private const val AUTO_REFRESH_INTERVAL = 30000L
+    }
+
     // 设备信息
     private val _device = MutableStateFlow<Device?>(null)
     val device: StateFlow<Device?> = _device.asStateFlow()
@@ -67,6 +77,16 @@ class DeviceDetailViewModel(
     private val _sensorDataList = MutableStateFlow(getDefaultSensorData())
     val sensorDataList: StateFlow<List<SensorDataVO>> = _sensorDataList.asStateFlow()
 
+    // 执行器状态（0 = OFF，1 = ON，2 = ERROR）
+    private val _pumpState = MutableStateFlow(0)
+    val pumpState: StateFlow<Int> = _pumpState.asStateFlow()
+
+    private val _fanState = MutableStateFlow(0)
+    val fanState: StateFlow<Int> = _fanState.asStateFlow()
+
+    private val _lightState = MutableStateFlow(0)
+    val lightState: StateFlow<Int> = _lightState.asStateFlow()
+
     // 原始接收数据（调试用）
     private val _receivedData = MutableStateFlow("")
     val receivedData: StateFlow<String> = _receivedData.asStateFlow()
@@ -78,6 +98,9 @@ class DeviceDetailViewModel(
     // 上次发送获取传感器指令的时间戳（用于限制间隔 >=5 秒）
     private var lastGetSensorTime = 0L
 
+    // 上次发送获取执行器状态指令的时间戳
+    private var lastGetActuatorTime = 0L
+
     // 定时任务是否在运行
     private var isPollingActive = false
 
@@ -85,11 +108,6 @@ class DeviceDetailViewModel(
         // 初始化时从 Device 实体加载最新传感器数据
         loadLatestSensorData()
         connect()
-    }
-
-    companion object {
-        private const val MIN_REFRESH_INTERVAL = 5000L
-        private const val AUTO_REFRESH_INTERVAL = 30000L
     }
 
     // 获取默认传感器数据，确保 UI 一直展示
@@ -103,10 +121,7 @@ class DeviceDetailViewModel(
                 statusColor = OrangeRed,
                 progress = 0.5f,
                 icon = R.drawable.ic_thermometer,
-                iconColor = listOf(
-                    LightGreen,
-                    YellowGreen
-                )
+                iconColor = listOf(LightGreen, YellowGreen)
             ),
             SensorDataVO(
                 title = "空气湿度",
@@ -116,10 +131,7 @@ class DeviceDetailViewModel(
                 statusColor = OrangeRed,
                 progress = 0.5f,
                 icon = R.drawable.ic_water,
-                iconColor = listOf(
-                    SkyBlue,
-                    DarkBlue
-                )
+                iconColor = listOf(SkyBlue, DarkBlue)
             ),
             SensorDataVO(
                 title = "光照强度",
@@ -129,10 +141,7 @@ class DeviceDetailViewModel(
                 statusColor = OrangeRed,
                 progress = 0.5f,
                 icon = R.drawable.ic_sunny,
-                iconColor = listOf(
-                    Yellow,
-                    OrangeYellow
-                )
+                iconColor = listOf(Yellow, OrangeYellow)
             ),
             SensorDataVO(
                 title = "土壤湿度",
@@ -142,10 +151,7 @@ class DeviceDetailViewModel(
                 statusColor = OrangeRed,
                 progress = 0.5f,
                 icon = R.drawable.ic_moisture,
-                iconColor = listOf(
-                    OrangeYellow,
-                    OrangeRed
-                )
+                iconColor = listOf(OrangeYellow, OrangeRed)
             )
         )
     }
@@ -176,10 +182,7 @@ class DeviceDetailViewModel(
                                     statusColor = LightGreen,
                                     progress = sensorData.temperature / 50f,
                                     icon = R.drawable.ic_thermometer,
-                                    iconColor = listOf(
-                                        LightGreen,
-                                        YellowGreen
-                                    )
+                                    iconColor = listOf(LightGreen, YellowGreen)
                                 ),
                                 SensorDataVO(
                                     title = "空气湿度",
@@ -189,10 +192,7 @@ class DeviceDetailViewModel(
                                     statusColor = LightGreen,
                                     progress = sensorData.humidity / 100f,
                                     icon = R.drawable.ic_water,
-                                    iconColor = listOf(
-                                        SkyBlue,
-                                        DarkBlue
-                                    )
+                                    iconColor = listOf(SkyBlue, DarkBlue)
                                 ),
                                 SensorDataVO(
                                     title = "光照强度",
@@ -202,10 +202,7 @@ class DeviceDetailViewModel(
                                     statusColor = LightGreen,
                                     progress = sensorData.lightIntensity.toFloat() / 2000f,
                                     icon = R.drawable.ic_sunny,
-                                    iconColor = listOf(
-                                        Yellow,
-                                        OrangeYellow
-                                    )
+                                    iconColor = listOf(Yellow, OrangeYellow)
                                 ),
                                 SensorDataVO(
                                     title = "土壤湿度",
@@ -215,10 +212,7 @@ class DeviceDetailViewModel(
                                     statusColor = LightGreen,
                                     progress = sensorData.soilMoisture / 100f,
                                     icon = R.drawable.ic_moisture,
-                                    iconColor = listOf(
-                                        OrangeYellow,
-                                        OrangeRed
-                                    )
+                                    iconColor = listOf(OrangeYellow, OrangeRed)
                                 )
                             )
                             _sensorDataList.value = sensorDataVOList
@@ -289,6 +283,8 @@ class DeviceDetailViewModel(
                         }
                         _connectionState.value = ConnectionState.Connected(gatt.device)
                         startPolling()
+                        // 连接成功后立即获取一次执行器状态
+                        fetchActuatorState()
                     } else {
                         _connectionState.value = ConnectionState.Failed("未找到指定服务")
                     }
@@ -335,18 +331,26 @@ class DeviceDetailViewModel(
         // 记录原始数据（调试）
         _receivedData.value = data.joinToString(" ") { "%02X".format(it) }
 
-        // 解析协议包
-        val packet = parseResponsePacket(data)
-        if (packet == null) {
+        val packet = parseResponsePacket(data) ?: run {
             Log.e("DeviceDetail", "Invalid packet")
             return
         }
 
         when (packet.command) {
             CommandType.CMD_ACK.cmdByte -> {
-                // 成功响应，根据原始请求命令解析数据
-                // 此处我们只关心传感器数据，所以假设是 CMD_GET_SENSOR_DATA 的响应
-                parseSensorData(packet.data)
+                // 根据数据长度判断是哪种命令的响应
+                when (packet.data.size) {
+                    13 -> parseSensorData(packet.data)      // CMD_GET_SENSOR_DATA
+                    3 -> parseActuatorState(packet.data)    // CMD_GET_ACTUATOR_STATE
+                    0 -> {
+                        // CMD_SET_ACTUATOR 的成功响应无数据，可以重新获取一次状态
+                        fetchActuatorState()
+                    }
+
+                    else -> {
+                        Log.w("DeviceDetail", "未知的 ACK 数据长度：${packet.data.size}")
+                    }
+                }
             }
 
             CommandType.CMD_ERROR.cmdByte -> {
@@ -355,13 +359,13 @@ class DeviceDetailViewModel(
             }
 
             else -> {
-                // 未知命令
+                Log.w("DeviceDetail", "未知命令：${packet.command}")
             }
         }
     }
 
     /**
-     * 解析响应包（简易版，实际应完整校验）
+     * 解析响应包
      */
     private fun parseResponsePacket(data: ByteArray): ResponsePacket? {
         if (data.size < 5) return null
@@ -369,7 +373,7 @@ class DeviceDetailViewModel(
         val cmd = data[1].toInt() and 0xFF
         val len = data[2].toInt() and 0xFF
         if (data.size != 5 + len) return null
-        // 校验和验证（可选，此处省略）
+        // 可在此验证校验和，省略
         val payload = data.sliceArray(3 until 3 + len)
         return ResponsePacket(cmd, payload)
     }
@@ -392,7 +396,6 @@ class DeviceDetailViewModel(
 
     /**
      * 解析传感器数据 CompactSensorData（13 字节）
-     * 格式见 protocol.h
      */
     private fun parseSensorData(data: ByteArray) {
         if (data.size < 13) return
@@ -403,10 +406,6 @@ class DeviceDetailViewModel(
         val humidityRaw = (data[5].toInt() and 0xFF shl 8) or (data[4].toInt() and 0xFF)
         val lightRaw = (data[7].toInt() and 0xFF shl 8) or (data[6].toInt() and 0xFF)
         val status = data[8].toInt() and 0xFF
-        /*val timestamp = (data[12].toInt() and 0xFF shl 24) or
-                (data[11].toInt() and 0xFF shl 16) or
-                (data[10].toInt() and 0xFF shl 8) or
-                (data[9].toInt() and 0xFF)*/
 
         // 转换为实际值
         val soilMoisture = soilMoistureRaw / 10.0f
@@ -495,6 +494,17 @@ class DeviceDetailViewModel(
     }
 
     /**
+     * 解析执行器状态（3 字节）
+     * 字节0：水泵，字节1：风扇，字节2：补光灯
+     */
+    private fun parseActuatorState(data: ByteArray) {
+        if (data.size < 3) return
+        _pumpState.value = data[0].toInt() and 0xFF
+        _fanState.value = data[1].toInt() and 0xFF
+        _lightState.value = data[2].toInt() and 0xFF
+    }
+
+    /**
      * 发送获取传感器数据指令（AA 01 00 01 55）
      */
     @SuppressLint("MissingPermission")
@@ -516,7 +526,72 @@ class DeviceDetailViewModel(
 
         // 构造命令包
         val command = byteArrayOf(0xAA.toByte(), 0x01, 0x00, 0x01, 0x55.toByte())
-        // 校验和已在包中写死（命令 0x01^0x00=0x01），也可动态计算
+        sendCommand(command)
+    }
+
+    /**
+     * 发送获取执行器状态指令（AA 02 00 02 55）
+     */
+    @SuppressLint("MissingPermission")
+    fun fetchActuatorState() {
+        val gatt = this.gatt
+        val char = writeCharacteristic
+        if (gatt == null || char == null) {
+            _connectionState.value = ConnectionState.Failed("设备未连接")
+            return
+        }
+
+        val now = System.currentTimeMillis()
+        if (now - lastGetActuatorTime < MIN_REFRESH_INTERVAL) {
+            Log.d("DeviceDetail", "请求过于频繁，忽略")
+            return
+        }
+        lastGetActuatorTime = now
+
+        val command = byteArrayOf(0xAA.toByte(), 0x02, 0x00, 0x02, 0x55.toByte())
+        sendCommand(command)
+    }
+
+    /**
+     * 设置执行器状态
+     * @param actuatorId 执行器 ID (0:水泵,1:风扇,2:补光灯)
+     * @param state 目标状态 (0:OFF,1:ON,2:ERROR)
+     */
+    @SuppressLint("MissingPermission")
+    fun setActuator(actuatorId: Int, state: Int) {
+        val gatt = this.gatt
+        val char = writeCharacteristic
+        if (gatt == null || char == null) {
+            _connectionState.value = ConnectionState.Failed("设备未连接")
+            return
+        }
+
+        // 构造命令包：AA 03 02 [ID] [State] 校验和 55
+        val data = byteArrayOf(actuatorId.toByte(), state.toByte())
+        val checksum = (0x03 xor 0x02 xor actuatorId xor state).toByte()
+        val command = byteArrayOf(
+            0xAA.toByte(),
+            0x03,
+            0x02,
+            data[0],
+            data[1],
+            checksum,
+            0x55.toByte()
+        )
+        sendCommand(command)
+
+        // 乐观更新 UI（可选，也可等待设备响应后重新获取）
+        // 这里选择等待设备返回 ACK，在 handleReceivedData 中会重新获取执行器状态
+    }
+
+    /**
+     * 发送原始命令字节
+     */
+    @SuppressLint("MissingPermission")
+    private fun sendCommand(command: ByteArray) {
+        val gatt = this.gatt
+        val char = writeCharacteristic
+        if (gatt == null || char == null) return
 
         try {
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
@@ -537,7 +612,7 @@ class DeviceDetailViewModel(
     }
 
     /**
-     * 启动定时轮询
+     * 启动定时轮询（传感器和执行器状态交替获取）
      */
     private fun startPolling() {
         if (isPollingActive) return
@@ -545,7 +620,9 @@ class DeviceDetailViewModel(
         viewModelScope.launch {
             while (isPollingActive) {
                 fetchSensorData()
-                delay(AUTO_REFRESH_INTERVAL)
+                delay(1000) // 间隔1秒再获取执行器状态
+                fetchActuatorState()
+                delay(AUTO_REFRESH_INTERVAL - 1000) // 保持总周期约为 AUTO_REFRESH_INTERVAL
             }
         }
     }
@@ -559,6 +636,7 @@ class DeviceDetailViewModel(
      */
     fun refresh() {
         fetchSensorData()
+        fetchActuatorState()
     }
 
     @SuppressLint("MissingPermission")

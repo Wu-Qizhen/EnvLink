@@ -88,6 +88,7 @@ import com.codeintellix.envlink.activity.theme.WhiteGray
 import com.codeintellix.envlink.activity.theme.Yellow
 import com.codeintellix.envlink.data.device.DeviceDetailViewModel
 import com.codeintellix.envlink.data.device.DeviceDetailViewModelFactory
+import com.codeintellix.envlink.entity.device.ConnectionState
 import com.codeintellix.envlink.entity.sensor.SensorDataVO
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -202,6 +203,10 @@ class DeviceDetailsActivity : ComponentActivity() {
         // 观察数据
         val sensorData by viewModel.sensorDataList.collectAsState()
         val connectionState by viewModel.connectionState.collectAsState()
+        val pumpState by viewModel.pumpState.collectAsState()
+        val fanState by viewModel.fanState.collectAsState()
+        val lightState by viewModel.lightState.collectAsState()
+        val isConnected = connectionState is ConnectionState.Connected
 
         // 下拉刷新状态
         var isRefreshing by remember { mutableStateOf(false) }
@@ -318,7 +323,30 @@ class DeviceDetailsActivity : ComponentActivity() {
 
                         EnvironmentArea(sensorData)
 
-                        ControlArea()
+                        ControlArea(
+                            pumpState = pumpState,
+                            fanState = fanState,
+                            lightState = lightState,
+                            enabled = isConnected,
+                            onPumpToggle = { newState ->
+                                viewModel.setActuator(
+                                    DeviceDetailViewModel.ACTUATOR_PUMP,
+                                    if (newState) 1 else 0
+                                )
+                            },
+                            onFanToggle = { newState ->
+                                viewModel.setActuator(
+                                    DeviceDetailViewModel.ACTUATOR_FAN,
+                                    if (newState) 1 else 0
+                                )
+                            },
+                            onLightToggle = { newState ->
+                                viewModel.setActuator(
+                                    DeviceDetailViewModel.ACTUATOR_LIGHT,
+                                    if (newState) 1 else 0
+                                )
+                            }
+                        )
 
                         ThresholdArea()
                     }
@@ -530,7 +558,15 @@ class DeviceDetailsActivity : ComponentActivity() {
     }
 
     @Composable
-    fun ControlArea() {
+    fun ControlArea(
+        pumpState: Int,
+        fanState: Int,
+        lightState: Int,
+        enabled: Boolean,
+        onPumpToggle: (Boolean) -> Unit,
+        onFanToggle: (Boolean) -> Unit,
+        onLightToggle: (Boolean) -> Unit
+    ) {
         Column(
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(15.dp)
@@ -547,7 +583,7 @@ class DeviceDetailsActivity : ComponentActivity() {
                 iconColor = LightGreen,
                 title = "智能模式",
                 description = "根据环境自动控制",
-                status = true
+                status = false
             ) {}
 
             ControlCard(
@@ -555,27 +591,30 @@ class DeviceDetailsActivity : ComponentActivity() {
                 iconColor = SkyBlue,
                 title = "风扇",
                 description = "通风系统",
-                status = false,
-                enabled = false
-            ) {}
+                status = fanState == 1,
+                enabled = enabled,
+                onToggle = onFanToggle
+            )
 
             ControlCard(
                 icon = R.drawable.ic_bulb,
                 iconColor = Yellow,
                 title = "补光灯",
                 description = "照明系统",
-                status = true,
-                enabled = false
-            ) {}
+                status = lightState == 1,
+                enabled = enabled,
+                onToggle = onLightToggle
+            )
 
             ControlCard(
                 icon = R.drawable.ic_pump,
                 iconColor = OrangeYellow,
                 title = "水泵",
                 description = "灌溉系统",
-                status = false,
-                enabled = false
-            ) {}
+                status = pumpState == 1,
+                enabled = enabled,
+                onToggle = onPumpToggle
+            )
         }
     }
 
@@ -588,13 +627,13 @@ class DeviceDetailsActivity : ComponentActivity() {
         description: String,
         status: Boolean,
         enabled: Boolean = true,
-        onClick: () -> Unit
+        onToggle: (Boolean) -> Unit
     ) {
         MicaCard(
             modifier = modifier.fillMaxWidth(),
             padding = XPadding.all(15),
             horizontalAlignment = Alignment.Start,
-            onClick = { if (enabled) onClick }
+            onClick = { onToggle } // TODO
         ) {
             Box(
                 modifier = Modifier.fillMaxWidth()
@@ -641,9 +680,7 @@ class DeviceDetailsActivity : ComponentActivity() {
                 Switch(
                     modifier = Modifier.align(Alignment.CenterEnd),
                     checked = status,
-                    onCheckedChange = {
-                        onClick
-                    },
+                    onCheckedChange = onToggle,
                     enabled = enabled,
                     colors = SwitchDefaults.colors(
                         checkedThumbColor = Color.White,
