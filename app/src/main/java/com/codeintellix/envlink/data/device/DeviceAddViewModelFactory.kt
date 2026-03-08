@@ -10,13 +10,13 @@ import com.codeintellix.envlink.domain.device.BluetoothScanner
  * Elegance is not a dispensable luxury but a quality that decides between success and failure!
  * Created by Wu Qizhen on 2026.03.05
  */
-class DeviceViewModelFactory(private val context: Context) : ViewModelProvider.Factory {
+class DeviceAddViewModelFactory(private val context: Context) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        if (modelClass.isAssignableFrom(DeviceViewModel::class.java)) {
+        if (modelClass.isAssignableFrom(DeviceAddViewModel::class.java)) {
             val repository = DeviceRepository.getInstance(context)
             val scanner = BluetoothScanner(context)
             @Suppress("UNCHECKED_CAST")
-            return DeviceViewModel(repository, scanner, context) as T
+            return DeviceAddViewModel(repository, scanner, context) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }

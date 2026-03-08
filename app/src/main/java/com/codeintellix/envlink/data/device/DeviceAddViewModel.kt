@@ -33,7 +33,7 @@ import java.util.UUID
  * Elegance is not a dispensable luxury but a quality that decides between success and failure!
  * Created by Wu Qizhen on 2026.03.05
  */
-class DeviceViewModel(
+class DeviceAddViewModel(
     private val repository: DeviceRepository,
     private val bluetoothScanner: BluetoothScanner,
     context: Context
@@ -140,7 +140,7 @@ class DeviceViewModel(
                     // 更新状态，并清理资源
                     _connectionState.value = ConnectionState.Disconnected
                     gatt.close()
-                    this@DeviceViewModel.gatt = null
+                    this@DeviceAddViewModel.gatt = null
                     writeCharacteristic = null
                     notifyCharacteristic = null
                     pendingDeviceAddress = null
@@ -396,7 +396,7 @@ class DeviceViewModel(
     }
 }
 
-/*class DeviceViewModel(
+/*class DeviceAddViewModel(
     private val repository: DeviceRepository,
     private val bluetoothScanner: BluetoothScanner,
     context: Context

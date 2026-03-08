@@ -77,8 +77,8 @@ import com.codeintellix.envlink.activity.theme.GreenWhite
 import com.codeintellix.envlink.activity.theme.LightGreen
 import com.codeintellix.envlink.activity.theme.OrangeRed
 import com.codeintellix.envlink.activity.theme.WhiteGray
-import com.codeintellix.envlink.data.device.DeviceViewModel
-import com.codeintellix.envlink.data.device.DeviceViewModelFactory
+import com.codeintellix.envlink.data.device.DeviceAddViewModel
+import com.codeintellix.envlink.data.device.DeviceAddViewModelFactory
 import com.codeintellix.envlink.entity.device.ConnectionState
 
 /**
@@ -102,8 +102,8 @@ class DeviceAddActivity : ComponentActivity() {
 
     @Composable
     fun DeviceAddScreen(
-        viewModel: DeviceViewModel = viewModel(
-            factory = DeviceViewModelFactory(LocalContext.current)
+        viewModel: DeviceAddViewModel = viewModel(
+            factory = DeviceAddViewModelFactory(LocalContext.current)
         )
     ) {
         val systemBarPadding = WindowInsets.systemBars.asPaddingValues()

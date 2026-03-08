@@ -42,8 +42,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.codeintellix.envlink.data.device.DeviceViewModel
-import com.codeintellix.envlink.data.device.DeviceViewModelFactory
+import com.codeintellix.envlink.data.device.DeviceAddViewModel
+import com.codeintellix.envlink.data.device.DeviceAddViewModelFactory
 import com.codeintellix.envlink.entity.device.ConnectionState
 
 /**
@@ -63,7 +63,7 @@ class DeviceTestActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     fun DeviceTestScreen(
-        viewModel: DeviceViewModel = viewModel(factory = DeviceViewModelFactory(LocalContext.current))
+        viewModel: DeviceAddViewModel = viewModel(factory = DeviceAddViewModelFactory(LocalContext.current))
     ) {
         val context = LocalContext.current
         val connectionState by viewModel.connectionState.collectAsState()
