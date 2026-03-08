@@ -22,6 +22,7 @@ import com.codeintellix.envlink.activity.theme.LightGreen
  */
 @Composable
 fun AliveTextField(
+    modifier: Modifier = Modifier,
     label: String,
     placeholder: String,
     value: String,
@@ -37,7 +38,7 @@ fun AliveTextField(
                 color = Gray
             )
         },
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier,
         singleLine = true,
         maxLines = 1,
         color = XColorGroup(
@@ -53,6 +54,7 @@ fun AliveTextField(
 
 @Composable
 fun AliveTextField(
+    modifier: Modifier = Modifier,
     label: String,
     placeholder: String,
     value: String,
@@ -71,8 +73,7 @@ fun AliveTextField(
                 color = Gray
             )
         },
-        modifier = Modifier
-            .fillMaxWidth()
+        modifier = modifier
             .focusRequester(focusRequester),
         singleLine = true,
         maxLines = 1,

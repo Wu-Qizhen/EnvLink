@@ -2,9 +2,11 @@ package com.codeintellix.envlink.activity.common.screen
 
 import aethex.matrix.animation.XActivateVfx.clickVfx
 import aethex.matrix.foundation.color.XColorGroup
+import aethex.matrix.foundation.color.withAlpha
 import aethex.matrix.foundation.property.XPadding
 import aethex.matrix.ui.XHeader
 import aethex.matrix.ui.XIcon
+import aethex.matrix.ui.XItem
 import android.content.Context
 import android.content.Intent
 import android.widget.Toast
@@ -298,6 +300,7 @@ fun HeaderArea(
         if (isEditing) {
             // 编辑模式：显示文本框
             AliveTextField(
+                modifier = Modifier.weight(1f),
                 label = "房屋名称",
                 placeholder = "请输入房屋名称",
                 value = houseName,
@@ -315,6 +318,28 @@ fun HeaderArea(
             // 自动获取焦点
             LaunchedEffect(Unit) {
                 focusRequester.requestFocus()
+            }
+            XItem.Button(
+                modifier = Modifier.padding(
+                    start = 10.dp,
+                    top = 10.dp
+                ),
+                text = "确定",
+                color = XColorGroup(
+                    background = LightGreen,
+                    activeBackground = LightGreen.withAlpha(0.8f),
+                    border = null,
+                    activeBorder = null,
+                    content = Color.White,
+                    activeContent = Color.White
+                )
+            ) {
+                if (houseName.trim().isBlank()) {
+                    houseName = HouseNameManager.DEFAULT_HOUSE_NAME
+                }
+                // 保存到 SharedPreferences 并退出编辑
+                houseNameManager.saveHouseName(houseName.trim())
+                isEditing = false
             }
         } else {
             Text(

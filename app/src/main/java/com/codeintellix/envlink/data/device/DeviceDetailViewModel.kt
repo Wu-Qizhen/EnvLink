@@ -85,6 +85,11 @@ class DeviceDetailViewModel(
         connect()
     }
 
+    companion object {
+        private const val MIN_REFRESH_INTERVAL = 5000L
+        private const val AUTO_REFRESH_INTERVAL = 30000L
+    }
+
     // 获取默认传感器数据，确保 UI 一直展示
     private fun getDefaultSensorData(): List<SensorDataVO> {
         return listOf(
@@ -424,16 +429,10 @@ class DeviceDetailViewModel(
                 // 获取当前设备信息
                 val currentDevice = _device.value
                 if (currentDevice != null) {
-                    // 使用实际字段内容进行更新
-                    repository.updateDevice(
-                        Device(
-                            address = deviceAddress,
-                            name = currentDevice.name,
-                            room = currentDevice.room,
-                            lastConnectedTime = System.currentTimeMillis(),
-                            createTime = currentDevice.createTime,
-                            latestSensorData = sensorDataJson
-                        )
+                    repository.updateSensorData(
+                        address = deviceAddress,
+                        sensorData = sensorDataJson,
+                        lastConnectedTime = System.currentTimeMillis()
                     )
                 }
             } catch (e: Exception) {
@@ -513,7 +512,7 @@ class DeviceDetailViewModel(
 
         // 检查发送间隔
         val now = System.currentTimeMillis()
-        if (now - lastGetSensorTime < 5000) {
+        if (now - lastGetSensorTime < MIN_REFRESH_INTERVAL) {
             Log.d("DeviceDetail", "请求过于频繁，忽略")
             return
         }
@@ -542,7 +541,7 @@ class DeviceDetailViewModel(
     }
 
     /**
-     * 启动定时轮询（每 5 秒获取一次数据）
+     * 启动定时轮询
      */
     private fun startPolling() {
         if (isPollingActive) return
@@ -550,7 +549,7 @@ class DeviceDetailViewModel(
         viewModelScope.launch {
             while (isPollingActive) {
                 fetchSensorData()
-                delay(5000) // 间隔 5 秒
+                delay(AUTO_REFRESH_INTERVAL)
             }
         }
     }

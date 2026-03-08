@@ -21,6 +21,9 @@ interface DeviceDao {
     @Update
     suspend fun updateDevice(device: Device)
 
+    @Query("UPDATE devices SET lastConnectedTime = :lastConnectedTime, latestSensorData = :sensorData WHERE address = :address")
+    suspend fun updateSensorData(address: String, lastConnectedTime: Long, sensorData: String)
+
     @Query("SELECT * FROM devices ORDER BY lastConnectedTime DESC")
     fun getAllDevices(): Flow<List<Device>>
 

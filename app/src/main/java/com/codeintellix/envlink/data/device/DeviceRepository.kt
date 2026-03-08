@@ -17,6 +17,10 @@ class DeviceRepository(private val deviceDao: DeviceDao) {
 
     suspend fun updateDevice(device: Device) = deviceDao.updateDevice(device)
 
+    suspend fun updateSensorData(address: String, lastConnectedTime: Long, sensorData: String) {
+        deviceDao.updateSensorData(address, lastConnectedTime, sensorData)
+    }
+
     suspend fun removeDevice(address: String) = deviceDao.deleteDevice(address)
 
     companion object {

@@ -265,6 +265,7 @@ class DeviceAddActivity : ComponentActivity() {
                                     )
                                     if (namingMode) {
                                         AliveTextField(
+                                            modifier = Modifier.fillMaxWidth(),
                                             label = "设备名称",
                                             placeholder = "请输入设备名称",
                                             value = deviceNameInput,
