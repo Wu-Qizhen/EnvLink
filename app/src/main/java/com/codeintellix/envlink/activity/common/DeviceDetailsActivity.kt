@@ -37,16 +37,22 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -59,7 +65,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -67,21 +72,24 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.codeintellix.envlink.R
 import com.codeintellix.envlink.activity.common.widget.MicaCard
+import com.codeintellix.envlink.activity.common.widget.ScaleRefreshIndicator
 import com.codeintellix.envlink.activity.theme.BlackGray
-import com.codeintellix.envlink.activity.theme.DarkBlue
 import com.codeintellix.envlink.activity.theme.Gray
 import com.codeintellix.envlink.activity.theme.GrayWhite
 import com.codeintellix.envlink.activity.theme.GreenWhite
 import com.codeintellix.envlink.activity.theme.LightGreen
-import com.codeintellix.envlink.activity.theme.OrangeRed
 import com.codeintellix.envlink.activity.theme.OrangeYellow
 import com.codeintellix.envlink.activity.theme.SkyBlue
 import com.codeintellix.envlink.activity.theme.WhiteGray
 import com.codeintellix.envlink.activity.theme.Yellow
-import com.codeintellix.envlink.activity.theme.YellowGreen
+import com.codeintellix.envlink.data.device.DeviceDetailViewModel
+import com.codeintellix.envlink.data.device.DeviceDetailViewModelFactory
 import com.codeintellix.envlink.entity.sensor.SensorDataVO
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -91,7 +99,7 @@ import kotlin.math.roundToInt
  * Created by Wu Qizhen on 2026.01.10
  */
 class DeviceDetailsActivity : ComponentActivity() {
-    // 预览时使用的数据
+    /*// 预览时使用的数据
     private val sensorDataVOLists = listOf(
         SensorDataVO(
             title = "环境温度",
@@ -133,28 +141,34 @@ class DeviceDetailsActivity : ComponentActivity() {
             icon = R.drawable.ic_moisture,
             iconColor = listOf(OrangeYellow, OrangeRed)
         )
-    )
+    )*/
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val deviceAddress = intent.getStringExtra("device_address") ?: ""
+
         enableEdgeToEdge()
         setContent {
             XBackground.Gradient(
                 backgroundColors = listOf(GreenWhite, Color.White, GreenWhite),
                 toastMargin = XPadding.horizontal(20).bottom(110)
             ) {
-                DeviceDetailsScreen()
+                DeviceDetailsScreen(
+                    deviceAddress = deviceAddress
+                )
             }
         }
     }
 
+    @OptIn(ExperimentalMaterial3Api::class)
     @Composable
-    fun DeviceDetailsScreen() {
+    fun DeviceDetailsScreen(
+        deviceAddress: String = ""
+    ) {
         val systemBarPadding = WindowInsets.systemBars.asPaddingValues()
-        val context = LocalContext.current
         val scrollState = rememberScrollState()
         val startFadePx = with(LocalDensity.current) { 50.dp.toPx() } // 开始变透明的滚动阈值
-        val endFadePx = with(LocalDensity.current) { 100.dp.toPx() }   // 完全透明的滚动阈值
+        val endFadePx = with(LocalDensity.current) { 100.dp.toPx() } // 完全透明的滚动阈值
         val showHeaderLine by remember {
             derivedStateOf { scrollState.value > endFadePx }
         }
@@ -177,6 +191,26 @@ class DeviceDetailsActivity : ComponentActivity() {
         val currentHeightDp = with(LocalDensity.current) { currentHeightPx.toDp() }
         // val showBox = currentHeightDp.value > 150
         val showBox = plantAlpha > 0f
+
+        // 创建 ViewModel 工厂
+        val viewModel: DeviceDetailViewModel = viewModel(
+            factory = DeviceDetailViewModelFactory(application, deviceAddress)
+        )
+
+        // 观察数据
+        val sensorData by viewModel.sensorDataList.collectAsState()
+        val connectionState by viewModel.connectionState.collectAsState()
+
+        // 下拉刷新状态
+        var isRefreshing by remember { mutableStateOf(false) }
+        val pullToRefreshState = rememberPullToRefreshState()
+
+        // 当连接成功或手动刷新时触发数据获取
+        LaunchedEffect(connectionState) {
+            // if (connectionState is ConnectionState.Connected) {
+            // 连接成功后立即获取一次数据（定时器会自动开始）
+            // }
+        }
 
         Box(
             modifier = Modifier.fillMaxSize()
@@ -244,26 +278,46 @@ class DeviceDetailsActivity : ComponentActivity() {
                     )
                 }
 
-                Column(
-                    modifier = Modifier
-                        .verticalScroll(scrollState)
-                        .padding(
-                            top = 20.dp,
-                            start = 20.dp,
-                            end = 20.dp,
-                            bottom = 120.dp
+                PullToRefreshBox(
+                    isRefreshing = isRefreshing,
+                    onRefresh = {
+                        isRefreshing = true
+                        viewModel.refresh()
+                        // 延迟关闭刷新状态（实际应在收到数据后关闭，这里简化）
+                        viewModel.viewModelScope.launch {
+                            delay(1000)
+                            isRefreshing = false
+                        }
+                    },
+                    state = pullToRefreshState,
+                    modifier = Modifier.fillMaxSize(),
+                    indicator = {
+                        ScaleRefreshIndicator(
+                            isRefreshing = isRefreshing,
+                            modifier = Modifier.align(Alignment.TopCenter)
                         )
-                        .fillMaxWidth()
-                        .weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(15.dp)
+                    }
                 ) {
-                    StatusArea()
+                    Column(
+                        modifier = Modifier
+                            .verticalScroll(scrollState)
+                            .padding(
+                                top = 20.dp,
+                                start = 20.dp,
+                                end = 20.dp,
+                                bottom = 120.dp
+                            )
+                            .fillMaxSize(),
+                        verticalArrangement = Arrangement.spacedBy(15.dp)
+                    ) {
+                        StatusArea()
 
-                    EnvironmentArea(sensorDataVOLists)
+                        EnvironmentArea(sensorData)
 
-                    ControlArea()
+                        ControlArea()
 
-                    ThresholdArea()
+                        ThresholdArea()
+                    }
                 }
             }
 

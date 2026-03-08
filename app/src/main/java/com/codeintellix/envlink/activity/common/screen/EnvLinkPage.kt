@@ -557,7 +557,9 @@ fun DeviceCard(
             .height(150.dp),
         padding = XPadding.all(10),
         onClick = {
-            val intent = Intent(context, DeviceDetailsActivity::class.java)
+            val intent = Intent(context, DeviceDetailsActivity::class.java).apply {
+                putExtra("device_address", device.address)
+            }
             context.startActivity(intent)
         }
     ) {
