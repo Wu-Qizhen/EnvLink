@@ -7,7 +7,7 @@ import com.codeintellix.envlink.entity.sensor.SensorStatus
  * Elegance is not a dispensable luxury but a quality that decides between success and failure!
  * Created by Wu Qizhen on 2026.03.08
  */
-object SensorDataUtil {
+object SensorDataHelper {
     // 进度条映射（限制在 0~1）
     fun mapTemperatureToProgress(temp: Float): Float =
         ((temp + 50) / 200).coerceIn(0f, 1f)

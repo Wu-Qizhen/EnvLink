@@ -16,6 +16,7 @@ import android.widget.Toast
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.codeintellix.envlink.domain.device.BluetoothScanner
+import com.codeintellix.envlink.entity.device.BleUuid
 import com.codeintellix.envlink.entity.device.ConnectionState
 import com.codeintellix.envlink.entity.device.Device
 import com.codeintellix.envlink.entity.house.RoomType
@@ -48,12 +49,6 @@ class DeviceAddViewModel(
 
     // 预设配对码（必须与 STM32 端 AT+PIN 设置的一致）
     private val presetPin = "McEnvCtr"
-
-    // BLE 服务与特征 UUID（与 BT24 模块匹配）
-    private val serviceUuid = UUID.fromString("0000FFE0-0000-1000-8000-00805F9B34FB")
-    private val txCharUuid = UUID.fromString("0000FFE1-0000-1000-8000-00805F9B34FB")
-    private val rxCharUuid = UUID.fromString("0000FFE1-0000-1000-8000-00805F9B34FB")
-    private val cccdUuid = UUID.fromString("00002902-0000-1000-8000-00805F9B34FB")
 
     // 保存找到的写特征和通知特征，供后续通信使用
     private var writeCharacteristic: BluetoothGattCharacteristic? = null
@@ -152,13 +147,13 @@ class DeviceAddViewModel(
         @SuppressLint("MissingPermission")
         override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
             if (status == BluetoothGatt.GATT_SUCCESS) {
-                val service = gatt.getService(serviceUuid)
+                val service = gatt.getService(BleUuid.SERVICE_UUID)
                 if (service != null) {
-                    writeCharacteristic = service.getCharacteristic(txCharUuid)
-                    val rxChar = service.getCharacteristic(rxCharUuid)
+                    writeCharacteristic = service.getCharacteristic(BleUuid.TX_CHAR_UUID)
+                    val rxChar = service.getCharacteristic(BleUuid.RX_CHAR_UUID)
                     if (rxChar != null) {
                         gatt.setCharacteristicNotification(rxChar, true)
-                        val descriptor = rxChar.getDescriptor(cccdUuid)
+                        val descriptor = rxChar.getDescriptor(BleUuid.CCCD_UUID)
                         descriptor?.let {
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                                 gatt.writeDescriptor(
@@ -267,7 +262,7 @@ class DeviceAddViewModel(
         if (gatt != null && notifyChar != null) {
             // 重新启用通知
             gatt.setCharacteristicNotification(notifyChar, true)
-            val descriptor = notifyChar.getDescriptor(cccdUuid)
+            val descriptor = notifyChar.getDescriptor(BleUuid.CCCD_UUID)
             descriptor?.let {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     gatt.writeDescriptor(it, BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE)
