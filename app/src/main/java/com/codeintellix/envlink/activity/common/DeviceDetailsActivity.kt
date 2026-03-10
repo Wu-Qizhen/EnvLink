@@ -5,6 +5,7 @@ import aethex.matrix.foundation.property.XPadding
 import aethex.matrix.ui.XBackground
 import aethex.matrix.ui.XHeader
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -88,7 +89,10 @@ import com.codeintellix.envlink.activity.theme.WhiteGray
 import com.codeintellix.envlink.activity.theme.Yellow
 import com.codeintellix.envlink.data.device.DeviceDetailViewModel
 import com.codeintellix.envlink.data.device.DeviceDetailViewModelFactory
+import com.codeintellix.envlink.entity.actuator.ActuatorState
+import com.codeintellix.envlink.entity.actuator.ActuatorType
 import com.codeintellix.envlink.entity.device.ConnectionState
+import com.codeintellix.envlink.entity.protocol.ControlMode
 import com.codeintellix.envlink.entity.sensor.SensorDataVO
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -193,30 +197,36 @@ class DeviceDetailsActivity : ComponentActivity() {
         // val showBox = currentHeightDp.value > 150
         val showBox = plantAlpha > 0f
 
-        // 创建 ViewModel 工厂
-        val viewModel: DeviceDetailViewModel = viewModel(
-            factory = DeviceDetailViewModelFactory(application, deviceAddress)
-        )
-
-        val device by viewModel.device.collectAsState()
-
-        // 观察数据
-        val sensorData by viewModel.sensorDataList.collectAsState()
-        val connectionState by viewModel.connectionState.collectAsState()
-        val pumpState by viewModel.pumpState.collectAsState()
-        val fanState by viewModel.fanState.collectAsState()
-        val lightState by viewModel.lightState.collectAsState()
-        val isConnected = connectionState is ConnectionState.Connected
-
-        // 下拉刷新状态
         var isRefreshing by remember { mutableStateOf(false) }
         val pullToRefreshState = rememberPullToRefreshState()
 
-        // 当连接成功或手动刷新时触发数据获取
+        val viewModel: DeviceDetailViewModel = viewModel(
+            factory = DeviceDetailViewModelFactory(application, deviceAddress)
+        )
+        val device by viewModel.device.collectAsState()
+        val connectionState by viewModel.connectionState.collectAsState()
+        val isConnected = connectionState is ConnectionState.Connected
+        val sensorData by viewModel.sensorDataList.collectAsState()
+        val controlMode by viewModel.controlMode.collectAsState()
+        val pumpState by viewModel.pumpState.collectAsState()
+        val fanState by viewModel.fanState.collectAsState()
+        val lightState by viewModel.lightState.collectAsState()
+        val pumpLoading by viewModel.pumpOperationLoading.collectAsState()
+        val fanLoading by viewModel.fanOperationLoading.collectAsState()
+        val lightLoading by viewModel.lightOperationLoading.collectAsState()
+
+        /*// 当连接成功或手动刷新时触发数据获取
         LaunchedEffect(connectionState) {
-            // if (connectionState is ConnectionState.Connected) {
-            // 连接成功后立即获取一次数据（定时器会自动开始）
-            // }
+            if (connectionState is ConnectionState.Connected) {
+                // 连接成功后立即获取一次数据（定时器会自动开始）
+            }
+        }*/
+
+        // Toast 观察
+        LaunchedEffect(viewModel) {
+            viewModel.toastMessage.collect { message ->
+                Toast.makeText(this@DeviceDetailsActivity, message, Toast.LENGTH_SHORT).show()
+            }
         }
 
         Box(
@@ -324,26 +334,33 @@ class DeviceDetailsActivity : ComponentActivity() {
                         EnvironmentArea(sensorData)
 
                         ControlArea(
+                            isConnected = isConnected,
+                            autoModeEnabled = isConnected && controlMode == ControlMode.AUTO,        // 自动模式（值为0）显示开启
                             pumpState = pumpState,
                             fanState = fanState,
                             lightState = lightState,
-                            enabled = isConnected,
+                            pumpLoading = pumpLoading,
+                            fanLoading = fanLoading,
+                            lightLoading = lightLoading,
+                            onAutoModeToggle = { checked ->
+                                viewModel.setControlMode(if (checked) ControlMode.AUTO else ControlMode.MANUAL)
+                            },
                             onPumpToggle = { newState ->
                                 viewModel.setActuator(
-                                    DeviceDetailViewModel.ACTUATOR_PUMP,
-                                    if (newState) 1 else 0
+                                    ActuatorType.PUMP,
+                                    if (newState) ActuatorState.ON else ActuatorState.OFF
                                 )
                             },
                             onFanToggle = { newState ->
                                 viewModel.setActuator(
-                                    DeviceDetailViewModel.ACTUATOR_FAN,
-                                    if (newState) 1 else 0
+                                    ActuatorType.FAN,
+                                    if (newState) ActuatorState.ON else ActuatorState.OFF
                                 )
                             },
                             onLightToggle = { newState ->
                                 viewModel.setActuator(
-                                    DeviceDetailViewModel.ACTUATOR_LIGHT,
-                                    if (newState) 1 else 0
+                                    ActuatorType.LIGHT,
+                                    if (newState) ActuatorState.ON else ActuatorState.OFF
                                 )
                             }
                         )
@@ -559,10 +576,15 @@ class DeviceDetailsActivity : ComponentActivity() {
 
     @Composable
     fun ControlArea(
-        pumpState: Int,
-        fanState: Int,
-        lightState: Int,
-        enabled: Boolean,
+        isConnected: Boolean,
+        autoModeEnabled: Boolean,
+        pumpState: ActuatorState,
+        fanState: ActuatorState,
+        lightState: ActuatorState,
+        pumpLoading: Boolean,
+        fanLoading: Boolean,
+        lightLoading: Boolean,
+        onAutoModeToggle: (Boolean) -> Unit,
         onPumpToggle: (Boolean) -> Unit,
         onFanToggle: (Boolean) -> Unit,
         onLightToggle: (Boolean) -> Unit
@@ -583,16 +605,18 @@ class DeviceDetailsActivity : ComponentActivity() {
                 iconColor = LightGreen,
                 title = "智能模式",
                 description = "根据环境自动控制",
-                status = false
-            ) {}
+                status = autoModeEnabled,
+                enabled = isConnected,
+                onToggle = onAutoModeToggle
+            )
 
             ControlCard(
                 icon = R.drawable.ic_fan,
                 iconColor = SkyBlue,
                 title = "风扇",
                 description = "通风系统",
-                status = fanState == 1,
-                enabled = enabled,
+                status = fanState == ActuatorState.ON,
+                enabled = !autoModeEnabled && !fanLoading,
                 onToggle = onFanToggle
             )
 
@@ -601,8 +625,8 @@ class DeviceDetailsActivity : ComponentActivity() {
                 iconColor = Yellow,
                 title = "补光灯",
                 description = "照明系统",
-                status = lightState == 1,
-                enabled = enabled,
+                status = lightState == ActuatorState.ON,
+                enabled = !autoModeEnabled && !lightLoading,
                 onToggle = onLightToggle
             )
 
@@ -611,8 +635,8 @@ class DeviceDetailsActivity : ComponentActivity() {
                 iconColor = OrangeYellow,
                 title = "水泵",
                 description = "灌溉系统",
-                status = pumpState == 1,
-                enabled = enabled,
+                status = pumpState == ActuatorState.ON,
+                enabled = !autoModeEnabled && !pumpLoading,
                 onToggle = onPumpToggle
             )
         }

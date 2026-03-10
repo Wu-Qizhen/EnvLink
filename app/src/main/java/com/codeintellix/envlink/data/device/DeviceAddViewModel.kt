@@ -19,6 +19,7 @@ import com.codeintellix.envlink.domain.device.BluetoothScanner
 import com.codeintellix.envlink.entity.device.BleUuid
 import com.codeintellix.envlink.entity.device.ConnectionState
 import com.codeintellix.envlink.entity.device.Device
+import com.codeintellix.envlink.entity.device.DeviceConfig
 import com.codeintellix.envlink.entity.house.RoomType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -28,7 +29,6 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import java.lang.reflect.Method
-import java.util.UUID
 
 /**
  * 代码不注释，同事两行泪！（给！爷！写！）
@@ -43,16 +43,11 @@ class DeviceAddViewModel(
     private val appContext: Context = context.applicationContext
     private var scanJob: Job? = null // 扫描协程的 Job
     private var gatt: BluetoothGatt? = null // BLE Gatt 客户端
-
     private val scanTimeout = 10_000L // 毫秒
-    private val deviceName = "PlantGuard"
-
-    // 预设配对码（必须与 STM32 端 AT+PIN 设置的一致）
-    private val presetPin = "McEnvCtr"
-
-    // 保存找到的写特征和通知特征，供后续通信使用
     private var writeCharacteristic: BluetoothGattCharacteristic? = null
     private var notifyCharacteristic: BluetoothGattCharacteristic? = null
+    private val discoveredDevices = mutableSetOf<BluetoothDevice>()
+    private var pendingDeviceAddress: String? = null
 
     // 状态 Flow
     private val _scanResults = MutableStateFlow<List<BluetoothDevice>>(emptyList())
@@ -72,9 +67,6 @@ class DeviceAddViewModel(
 
     private val _addedDevices = MutableStateFlow<List<Device>>(emptyList())
     val addedDevices: StateFlow<List<Device>> = _addedDevices
-
-    private val discoveredDevices = mutableSetOf<BluetoothDevice>()
-    private var pendingDeviceAddress: String? = null
 
     // 广播接收器：处理配对请求和绑定状态变化
     private val bluetoothReceiver = object : BroadcastReceiver() {
@@ -240,7 +232,7 @@ class DeviceAddViewModel(
         try {
             // 反射调用 setPin 方法
             val setPinMethod: Method = device.javaClass.getMethod("setPin", ByteArray::class.java)
-            setPinMethod.invoke(device, presetPin.toByteArray(Charsets.UTF_8))
+            setPinMethod.invoke(device, DeviceConfig.PRESET_PIN.toByteArray(Charsets.UTF_8))
 
             // 确认配对（某些设备可能需要）
             val setPairingConfirmationMethod: Method? = try {
@@ -286,7 +278,7 @@ class DeviceAddViewModel(
             try {
                 // 设置扫描超时
                 withTimeout(scanTimeout) {
-                    bluetoothScanner.startBleScan(deviceName)
+                    bluetoothScanner.startBleScan(DeviceConfig.DEVICE_NAME)
                         .catch { e -> /* 处理错误 */ }
                         .collect { device ->
                             discoveredDevices.add(device)
