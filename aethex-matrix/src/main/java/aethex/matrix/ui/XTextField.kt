@@ -114,6 +114,84 @@ object XTextField {
     }
 
     @Composable
+    fun Block(
+        modifier: Modifier = Modifier,
+        label: String,
+        value: String,
+        onValueChange: (String) -> Unit,
+        placeholder: @Composable () -> Unit = {},
+        color: XColorGroup = XColorGroup(
+            background = XColors.BG_DARK_M,
+            activeBackground = Color.Transparent,
+            content = Color.White,
+            activeContent = XThemeColor.BASE,
+            border = Color.Transparent,
+            activeBorder = XThemeColor.BASE
+        ),
+        borderRadius: Int = 15,
+        singleLine: Boolean = false,
+        maxLines: Int = if (singleLine) 1 else Int.MAX_VALUE,
+        keyboardOptions: KeyboardOptions
+    ) {
+        val interactionSource = remember { MutableInteractionSource() }
+        val isFocused by interactionSource.collectIsFocusedAsState()
+
+        // 动画边框颜色变化
+        val borderColor by animateColorAsState(
+            targetValue = if (isFocused) (color.activeBorder ?: XThemeColor.BASE) else (color.border
+                ?: Color.Transparent),
+            label = "borderColor"
+        )
+        val labelColor by animateColorAsState(
+            targetValue = if (value.isNotEmpty()) (color.activeContent
+                ?: XThemeColor.BASE) else (color.content
+                ?: Color.White),
+            label = "labelColor"
+        )
+
+        TextField(
+            label = {
+                Text(
+                    text = label,
+                    color = labelColor
+                )
+            },
+            value = value,
+            onValueChange = onValueChange,
+            placeholder = {
+                placeholder()
+            },
+            textStyle = TextStyle(
+                color = color.content ?: Color.White, // 会覆盖 focusedTextColor / unfocusedTextColor
+            ),
+            modifier = modifier
+                .heightIn(min = 60.dp)
+                .fillMaxWidth()
+                .border(
+                    width = 2.dp,
+                    color = borderColor,
+                    shape = RoundedCornerShape(borderRadius.dp)
+                ),
+            singleLine = singleLine,
+            maxLines = maxLines,
+            shape = RoundedCornerShape(borderRadius.dp),
+            interactionSource = interactionSource,
+            keyboardOptions = keyboardOptions,
+            colors = TextFieldDefaults.colors(
+                focusedIndicatorColor = Color.Transparent,
+                unfocusedIndicatorColor = Color.Transparent,
+                disabledIndicatorColor = Color.Transparent,
+                errorIndicatorColor = Color.Transparent,
+                focusedContainerColor = color.activeBackground ?: Color.Transparent,
+                unfocusedContainerColor = color.background ?: XColors.BG_DARK_M,
+                focusedLabelColor = color.activeBorder ?: XThemeColor.BASE,
+                unfocusedLabelColor = color.content ?: Color.White,
+                cursorColor = color.activeBorder ?: XThemeColor.BASE
+            )
+        )
+    }
+
+    @Composable
     fun Outline(
         modifier: Modifier = Modifier,
         label: String,

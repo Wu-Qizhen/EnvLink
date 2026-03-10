@@ -1,8 +1,10 @@
 package com.codeintellix.envlink.activity.common
 
+import aethex.matrix.foundation.color.XColorGroup
 import aethex.matrix.foundation.color.withAlpha
 import aethex.matrix.foundation.property.XPadding
 import aethex.matrix.ui.XBackground
+import aethex.matrix.ui.XCard
 import aethex.matrix.ui.XHeader
 import android.os.Bundle
 import android.widget.Toast
@@ -37,7 +39,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Slider
@@ -70,6 +74,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -332,7 +337,7 @@ class DeviceDetailsActivity : ComponentActivity() {
                     ) {
                         StatusArea()
 
-                        EnvironmentArea(sensorData)
+                        EnvironmentArea(sensorDataVOList = sensorData)
 
                         ControlArea(
                             isConnected = isConnected,
@@ -366,7 +371,7 @@ class DeviceDetailsActivity : ComponentActivity() {
                             }
                         )
 
-                        ThresholdArea()
+                        ThresholdArea(viewModel = viewModel)
                     }
                 }
             }
@@ -737,15 +742,22 @@ class DeviceDetailsActivity : ComponentActivity() {
     }
 
     @Composable
-    fun ThresholdArea() {
-        var moistureMinThreshold by remember { mutableIntStateOf(30) }
+    fun ThresholdArea(
+        viewModel: DeviceDetailViewModel
+    ) {
+        /*var moistureMinThreshold by remember { mutableIntStateOf(30) }
         var moistureMaxThreshold by remember { mutableIntStateOf(70) }
         var temperatureMinThreshold by remember { mutableIntStateOf(20) }
         var temperatureMaxThreshold by remember { mutableIntStateOf(30) }
         var lightIntensityMinThreshold by remember { mutableStateOf("500") }
         var lightIntensityMaxThreshold by remember { mutableStateOf("800") }
         var pumpMinIntervalThreshold by remember { mutableStateOf("300") }
-        var pumpMaxDurationThreshold by remember { mutableStateOf("20") }
+        var pumpMaxDurationThreshold by remember { mutableStateOf("20") }*/
+
+        val controlParams by viewModel.controlParams.collectAsState()
+        val draftParams by viewModel.draftParams.collectAsState()
+        val isParamsChanged by viewModel.isParamsChanged.collectAsState()
+        val paramsLoading by viewModel.paramsLoading.collectAsState()
 
         Column(
             modifier = Modifier.fillMaxWidth(),
@@ -761,98 +773,190 @@ class DeviceDetailsActivity : ComponentActivity() {
             ThresholdCard(
                 title = "温度下限",
                 description = "低于该温度关闭风扇",
-                value = temperatureMinThreshold,
+                value = draftParams.temperatureLow.toInt(),
                 minValue = 0,
                 maxValue = 50,
                 unit = "℃",
                 onValueChange = { newValue ->
-                    temperatureMinThreshold = newValue  // 更新状态
+                    viewModel.updateDraftParams(
+                        draftParams.copy(temperatureLow = newValue.toFloat())
+                    )
                 }
             )
 
             ThresholdCard(
                 title = "温度上限",
                 description = "高于该温度开启风扇",
-                value = temperatureMaxThreshold,
+                value = draftParams.temperatureHigh.toInt(),
                 minValue = 0,
                 maxValue = 50,
                 unit = "℃",
                 onValueChange = { newValue ->
-                    temperatureMaxThreshold = newValue  // 更新状态
+                    viewModel.updateDraftParams(
+                        draftParams.copy(temperatureHigh = newValue.toFloat())
+                    )
                 }
             )
 
             ThresholdCard(
                 title = "土壤湿度下限",
                 description = "低于该湿度开启水泵",
-                value = moistureMinThreshold,
+                value = draftParams.soilMoistureLow.toInt(),
                 minValue = 0,
                 maxValue = 100,
                 unit = "%",
                 onValueChange = { newValue ->
-                    moistureMinThreshold = newValue
+                    viewModel.updateDraftParams(
+                        draftParams.copy(soilMoistureLow = newValue.toFloat())
+                    )
                 }
             )
 
             ThresholdCard(
                 title = "土壤湿度上限",
                 description = "高于该湿度关闭水泵",
-                value = moistureMaxThreshold,
+                value = draftParams.soilMoistureHigh.toInt(),
                 minValue = 0,
                 maxValue = 100,
                 unit = "%",
                 onValueChange = { newValue ->
-                    moistureMaxThreshold = newValue
+                    viewModel.updateDraftParams(
+                        draftParams.copy(soilMoistureHigh = newValue.toFloat())
+                    )
                 }
             )
 
             ThresholdCard(
                 title = "光照强度下限",
                 description = "低于该强度开启补光灯",
-                value = lightIntensityMinThreshold,
+                value = draftParams.lightIntensityLow.toInt().toString(),
                 minValue = 0,
                 maxValue = 50000,
                 unit = "Lux",
                 onValueChange = { newValue: String ->
-                    lightIntensityMinThreshold = newValue
+                    if (newValue.isEmpty()) {
+                        // 用户清空输入框，设为 0
+                        viewModel.updateDraftParams(
+                            draftParams.copy(lightIntensityLow = 0f)
+                        )
+                    } else {
+                        newValue.toIntOrNull()?.let { intValue ->
+                            viewModel.updateDraftParams(
+                                draftParams.copy(lightIntensityLow = intValue.toFloat())
+                            )
+                        }
+                    }
                 }
             )
 
             ThresholdCard(
                 title = "光照强度上限",
                 description = "高于该强度关闭水泵关闭补光灯",
-                value = lightIntensityMaxThreshold,
+                value = draftParams.lightIntensityHigh.toInt().toString(),
                 minValue = 0,
                 maxValue = 50000,
                 unit = "Lux",
                 onValueChange = { newValue: String ->
-                    lightIntensityMaxThreshold = newValue
+                    if (newValue.isEmpty()) {
+                        // 用户清空输入框，设为 0
+                        viewModel.updateDraftParams(
+                            draftParams.copy(lightIntensityHigh = 0f)
+                        )
+                    } else {
+                        newValue.toIntOrNull()?.let { intValue ->
+                            viewModel.updateDraftParams(
+                                draftParams.copy(lightIntensityHigh = intValue.toFloat())
+                            )
+                        }
+                    }
                 }
             )
 
             ThresholdCard(
                 title = "水泵开启最小间隔时间",
                 description = "短于该时间无法开启水泵",
-                value = pumpMinIntervalThreshold,
+                value = draftParams.minPumpInterval.toString(),
                 minValue = 300,
                 maxValue = 3600 * 24,
                 unit = "秒",
                 onValueChange = { newValue: String ->
-                    pumpMinIntervalThreshold = newValue
+                    if (newValue.isEmpty()) {
+                        // 用户清空输入框，设为 0
+                        viewModel.updateDraftParams(
+                            draftParams.copy(minPumpInterval = 0)
+                        )
+                    } else {
+                        newValue.toIntOrNull()?.let { intValue ->
+                            viewModel.updateDraftParams(
+                                draftParams.copy(minPumpInterval = intValue.toLong())
+                            )
+                        }
+                    }
                 }
             )
 
             ThresholdCard(
                 title = "水泵开启最大持续时间",
                 description = "超过该时间水泵自动关闭",
-                value = pumpMaxDurationThreshold,
+                value = draftParams.maxPumpDuration.toString(),
                 minValue = 5,
                 maxValue = 3600,
                 unit = "秒",
                 onValueChange = { newValue: String ->
-                    pumpMaxDurationThreshold = newValue
+                    if (newValue.isEmpty()) {
+                        // 用户清空输入框，设为 0
+                        viewModel.updateDraftParams(
+                            draftParams.copy(maxPumpDuration = 0)
+                        )
+                    } else {
+                        newValue.toIntOrNull()?.let { intValue ->
+                            viewModel.updateDraftParams(
+                                draftParams.copy(maxPumpDuration = intValue.toLong())
+                            )
+                        }
+                    }
                 }
             )
+
+            if (isParamsChanged) {
+                XCard.Lively(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp),
+                    borderRadius = 30,
+                    color = XColorGroup(
+                        background = LightGreen,
+                        activeBackground = LightGreen.withAlpha(0.8f)
+                    ),
+                    padding = XPadding.horizontal(15).vertical(10),
+                    onClick = {
+                        if (!paramsLoading) {
+                            viewModel.saveControlParams()
+                        }
+                    }
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (paramsLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(30.dp),
+                                color = Color.White
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                        }
+                        Text(
+                            text = "保存设置",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            maxLines = 1
+                        )
+                    }
+                }
+            }
         }
     }
 
@@ -980,8 +1084,19 @@ class DeviceDetailsActivity : ComponentActivity() {
                         label = "$minValue $unit ~ $maxValue $unit",
                         placeholder = "请输入阈值",
                         maxLines = 1,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         value = value,
-                        onValueChange = onValueChange
+                        onValueChange = { newValue ->
+                            // 只保留数字字符
+                            val filtered = newValue.filter { it.isDigit() }
+                            // 只有当过滤后的字符串与原始输入不同时才触发更新
+                            // 避免无限循环，同时保证只输入数字
+                            if (filtered != newValue) {
+                                onValueChange(filtered)
+                            } else {
+                                onValueChange(newValue)
+                            }
+                        }
                     )
                     Text(
                         text = unit,

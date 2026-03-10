@@ -30,6 +30,7 @@ import com.codeintellix.envlink.entity.device.ConnectionState
 import com.codeintellix.envlink.entity.device.Device
 import com.codeintellix.envlink.entity.protocol.CommandType
 import com.codeintellix.envlink.entity.protocol.ControlMode
+import com.codeintellix.envlink.entity.protocol.ControlParams
 import com.codeintellix.envlink.entity.sensor.SensorData
 import com.codeintellix.envlink.entity.sensor.SensorDataVO
 import com.codeintellix.envlink.entity.sensor.SensorStatus
@@ -61,6 +62,7 @@ class DeviceDetailViewModel(
 
     private var lastGetSensorTime = 0L // 上次发送获取传感器指令的时间戳
     private var lastGetActuatorTime = 0L // 上次发送获取执行器状态指令的时间戳
+    private var lastGetParamsTime = 0L
     private var isPollingActive = false // 定时任务是否在运行
     private var pendingActuatorType: ActuatorType? = null // 记录最近一次操作（用于对比结果）
     private var pendingTargetState: ActuatorState? = null
@@ -99,6 +101,16 @@ class DeviceDetailViewModel(
     val fanOperationLoading: StateFlow<Boolean> = _fanOperationLoading.asStateFlow()
     private val _lightOperationLoading = MutableStateFlow(false)
     val lightOperationLoading: StateFlow<Boolean> = _lightOperationLoading.asStateFlow()
+
+    // 参数
+    private val _controlParams = MutableStateFlow(ControlParams.DEFAULT)
+    val controlParams: StateFlow<ControlParams> = _controlParams.asStateFlow()
+    private val _draftParams = MutableStateFlow(ControlParams.DEFAULT)
+    val draftParams: StateFlow<ControlParams> = _draftParams.asStateFlow() // 临时保存用户修改的草稿
+    private val _paramsLoading = MutableStateFlow(false)
+    val paramsLoading: StateFlow<Boolean> = _paramsLoading.asStateFlow()
+    private val _isParamsChanged = MutableStateFlow(false)  // 界面参数是否有未保存修改
+    val isParamsChanged: StateFlow<Boolean> = _isParamsChanged.asStateFlow()
 
     init {
         // 初始化时从 Device 实体加载上次传感器数据
@@ -350,6 +362,8 @@ class DeviceDetailViewModel(
                             fetchSystemInfo()
                             delay(100)
                             fetchActuatorState()
+                            delay(100)
+                            fetchControlParams()
                         }
                     } else {
                         _connectionState.value = ConnectionState.Failed("未找到指定服务")
@@ -420,7 +434,17 @@ class DeviceDetailViewModel(
                         _controlMode.value = info.controlMode
                     }
 
-                    0 -> { /* 设置类命令的成功响应，无需处理 */
+                    32 -> { // 控制参数响应
+                        BleProtocolHelper.parseControlParams(parsed.payload)?.let { params ->
+                            _controlParams.value = params
+                            _draftParams.value = params // 同步草稿
+                            _isParamsChanged.value = false
+                            _paramsLoading.value = false
+                        }
+                    }
+
+                    0 -> {
+                        // 设置类命令的成功响应，无需处理
                     }
 
                     else -> Log.w("DeviceDetail", "未知负载长度：${parsed.payload.size}")
@@ -461,6 +485,15 @@ class DeviceDetailViewModel(
         sendCommand(BleProtocolHelper.buildGetSystemInfoCommand())
     }
 
+    fun fetchControlParams(force: Boolean = false) {
+        if (!canSendCommand()) return
+        val now = System.currentTimeMillis()
+        if (!force && now - lastGetParamsTime < MIN_REFRESH_INTERVAL) return
+        lastGetParamsTime = now
+        _paramsLoading.value = true
+        sendCommand(BleProtocolHelper.buildGetControlParamsCommand())
+    }
+
     fun setControlMode(mode: ControlMode) {
         if (!canSendCommand()) {
             updateToastMessage("设备未连接")
@@ -490,6 +523,40 @@ class DeviceDetailViewModel(
         viewModelScope.launch {
             delay(300)
             fetchActuatorState(force = true)
+        }
+    }
+
+    fun updateDraftParams(newParams: ControlParams) {
+        // 对每个字段进行边界裁剪
+        val safeParams = newParams.copy(
+            soilMoistureLow = newParams.soilMoistureLow.coerceIn(0f, 100f),
+            soilMoistureHigh = newParams.soilMoistureHigh.coerceIn(0f, 100f),
+            temperatureLow = newParams.temperatureLow.coerceIn(-50f, 150f),
+            temperatureHigh = newParams.temperatureHigh.coerceIn(-50f, 150f),
+            lightIntensityLow = newParams.lightIntensityLow.coerceIn(0f, 50000f),
+            lightIntensityHigh = newParams.lightIntensityHigh.coerceIn(0f, 50000f),
+            minPumpInterval = newParams.minPumpInterval.coerceIn(0, 86400),
+            maxPumpDuration = newParams.maxPumpDuration.coerceIn(0, 3600)
+        )
+        _draftParams.value = safeParams
+        _isParamsChanged.value = safeParams != _controlParams.value
+    }
+
+    fun saveControlParams() {
+        if (!canSendCommand()) {
+            updateToastMessage("设备未连接")
+            return
+        }
+        if (!_isParamsChanged.value) return
+
+        viewModelScope.launch {
+            // 显示加载（可在界面上给保存按钮显示进度）
+            // 这里可以单独加一个 loading 状态
+            _paramsLoading.value = true
+            sendCommand(BleProtocolHelper.buildSetControlParamsCommand(_draftParams.value))
+            // 等待 300ms 后重新获取参数以确认
+            delay(300)
+            fetchControlParams(force = true)
         }
     }
 

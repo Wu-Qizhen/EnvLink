@@ -58,6 +58,41 @@ fun AliveTextField(
     modifier: Modifier = Modifier,
     label: String,
     placeholder: String,
+    maxLines: Int,
+    value: String,
+    keyboardOptions: KeyboardOptions,
+    onValueChange: (String) -> Unit
+) {
+    XTextField.Block(
+        label = label,
+        value = value,
+        onValueChange = onValueChange,
+        placeholder = {
+            Text(
+                text = placeholder,
+                color = Gray
+            )
+        },
+        modifier = modifier,
+        singleLine = maxLines == 1,
+        maxLines = maxLines,
+        color = XColorGroup(
+            background = GrayWhite,
+            activeBackground = Color.Transparent,
+            content = BlackGray,
+            activeContent = LightGreen,
+            border = null,
+            activeBorder = LightGreen
+        ),
+        keyboardOptions = keyboardOptions
+    )
+}
+
+@Composable
+fun AliveTextField(
+    modifier: Modifier = Modifier,
+    label: String,
+    placeholder: String,
     value: String,
     onValueChange: (String) -> Unit
 ) {

@@ -40,6 +40,7 @@ class DeviceAddViewModel(
     private val bluetoothScanner: BluetoothScanner,
     context: Context
 ) : ViewModel() {
+    // TODO: Toast
     private val appContext: Context = context.applicationContext
     private var scanJob: Job? = null // 扫描协程的 Job
     private var gatt: BluetoothGatt? = null // BLE Gatt 客户端

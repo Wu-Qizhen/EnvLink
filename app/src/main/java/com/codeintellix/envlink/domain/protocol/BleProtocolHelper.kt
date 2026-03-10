@@ -4,6 +4,7 @@ import com.codeintellix.envlink.entity.actuator.ActuatorState
 import com.codeintellix.envlink.entity.actuator.ActuatorStatus
 import com.codeintellix.envlink.entity.protocol.CommandType
 import com.codeintellix.envlink.entity.protocol.ControlMode
+import com.codeintellix.envlink.entity.protocol.ControlParams
 import com.codeintellix.envlink.entity.protocol.ParsedResponse
 import com.codeintellix.envlink.entity.protocol.SystemInfo
 import com.codeintellix.envlink.entity.sensor.SensorData
@@ -42,6 +43,42 @@ object BleProtocolHelper {
     fun buildSetControlModeCommand(mode: Int): ByteArray {
         require(mode in 0..2) { "Invalid control mode" }
         return buildCommand(CommandType.SET_CONTROL_MODE.value, byteArrayOf(mode.toByte()))
+    }
+
+    fun buildGetControlParamsCommand(): ByteArray =
+        buildCommand(CommandType.GET_PARAMS.value, byteArrayOf())
+
+    fun buildSetControlParamsCommand(params: ControlParams): ByteArray {
+        // 将 ControlParams 对象序列化为 32 字节
+        val data = ByteArray(32)
+        var offset = 0
+
+        fun putFloat(value: Float) {
+            val intBits = value.toRawBits() // 直接使用 IEEE 754 浮点数的二进制表示（小端序）
+            data[offset++] = (intBits and 0xFF).toByte()
+            data[offset++] = (intBits shr 8 and 0xFF).toByte()
+            data[offset++] = (intBits shr 16 and 0xFF).toByte()
+            data[offset++] = (intBits shr 24 and 0xFF).toByte()
+        }
+
+        fun putUInt32(value: Long) {
+            data[offset++] = (value and 0xFF).toByte()
+            data[offset++] = (value shr 8 and 0xFF).toByte()
+            data[offset++] = (value shr 16 and 0xFF).toByte()
+            data[offset++] = (value shr 24 and 0xFF).toByte()
+        }
+
+        // 按结构体顺序：soilMoistureLow, soilMoistureHigh, temperatureHigh, temperatureLow, lightIntensityLow, lightIntensityHigh, minPumpInterval, maxPumpDuration
+        putFloat(params.soilMoistureLow)
+        putFloat(params.soilMoistureHigh)
+        putFloat(params.temperatureHigh)
+        putFloat(params.temperatureLow)
+        putFloat(params.lightIntensityLow)
+        putFloat(params.lightIntensityHigh)
+        putUInt32(params.minPumpInterval)
+        putUInt32(params.maxPumpDuration)
+
+        return buildCommand(CommandType.SET_PARAMS.value, data)
     }
 
     private fun buildCommand(cmd: Int, data: ByteArray): ByteArray {
@@ -132,6 +169,21 @@ object BleProtocolHelper {
             uptimeSeconds = uptime.toLong() and 0xFFFFFFFFL,
             systemState = systemState,
             controlMode = controlMode
+        )
+    }
+
+    fun parseControlParams(payload: ByteArray): ControlParams? {
+        if (payload.size != 32) return null
+        val buffer = ByteBuffer.wrap(payload).order(ByteOrder.LITTLE_ENDIAN)
+        return ControlParams(
+            soilMoistureLow = buffer.float,
+            soilMoistureHigh = buffer.float,
+            temperatureHigh = buffer.float,
+            temperatureLow = buffer.float,
+            lightIntensityLow = buffer.float,
+            lightIntensityHigh = buffer.float,
+            minPumpInterval = buffer.int.toLong() and 0xFFFFFFFFL,
+            maxPumpDuration = buffer.int.toLong() and 0xFFFFFFFFL
         )
     }
 }
