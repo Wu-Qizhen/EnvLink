@@ -107,7 +107,7 @@ object XTextField {
                 focusedContainerColor = color.activeBackground ?: Color.Transparent,
                 unfocusedContainerColor = color.background ?: XColors.BG_DARK_M,
                 focusedLabelColor = color.activeBorder ?: XThemeColor.BASE,
-                unfocusedLabelColor = Color.White,
+                unfocusedLabelColor = color.content ?: Color.White,
                 cursorColor = color.activeBorder ?: XThemeColor.BASE
             )
         )

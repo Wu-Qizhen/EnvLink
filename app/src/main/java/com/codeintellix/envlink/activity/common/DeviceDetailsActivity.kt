@@ -76,6 +76,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.codeintellix.envlink.R
+import com.codeintellix.envlink.activity.common.widget.AliveTextField
 import com.codeintellix.envlink.activity.common.widget.MicaCard
 import com.codeintellix.envlink.activity.common.widget.ScaleRefreshIndicator
 import com.codeintellix.envlink.activity.theme.BlackGray
@@ -593,12 +594,23 @@ class DeviceDetailsActivity : ComponentActivity() {
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(15.dp)
         ) {
-            Text(
-                text = "设备控制",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                color = BlackGray
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.Bottom
+            ) {
+                Text(
+                    text = "设备控制",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = BlackGray
+                )
+                Text(
+                    text = "仅在非智能模式下可进行手动控制",
+                    fontSize = 14.sp,
+                    color = Gray
+                )
+            }
 
             ControlCard(
                 icon = R.drawable.ic_ai,
@@ -730,6 +742,10 @@ class DeviceDetailsActivity : ComponentActivity() {
         var moistureMaxThreshold by remember { mutableIntStateOf(70) }
         var temperatureMinThreshold by remember { mutableIntStateOf(20) }
         var temperatureMaxThreshold by remember { mutableIntStateOf(30) }
+        var lightIntensityMinThreshold by remember { mutableStateOf("500") }
+        var lightIntensityMaxThreshold by remember { mutableStateOf("800") }
+        var pumpMinIntervalThreshold by remember { mutableStateOf("300") }
+        var pumpMaxDurationThreshold by remember { mutableStateOf("20") }
 
         Column(
             modifier = Modifier.fillMaxWidth(),
@@ -789,6 +805,54 @@ class DeviceDetailsActivity : ComponentActivity() {
                     moistureMaxThreshold = newValue
                 }
             )
+
+            ThresholdCard(
+                title = "光照强度下限",
+                description = "低于该强度开启补光灯",
+                value = lightIntensityMinThreshold,
+                minValue = 0,
+                maxValue = 50000,
+                unit = "Lux",
+                onValueChange = { newValue: String ->
+                    lightIntensityMinThreshold = newValue
+                }
+            )
+
+            ThresholdCard(
+                title = "光照强度上限",
+                description = "高于该强度关闭水泵关闭补光灯",
+                value = lightIntensityMaxThreshold,
+                minValue = 0,
+                maxValue = 50000,
+                unit = "Lux",
+                onValueChange = { newValue: String ->
+                    lightIntensityMaxThreshold = newValue
+                }
+            )
+
+            ThresholdCard(
+                title = "水泵开启最小间隔时间",
+                description = "短于该时间无法开启水泵",
+                value = pumpMinIntervalThreshold,
+                minValue = 300,
+                maxValue = 3600 * 24,
+                unit = "秒",
+                onValueChange = { newValue: String ->
+                    pumpMinIntervalThreshold = newValue
+                }
+            )
+
+            ThresholdCard(
+                title = "水泵开启最大持续时间",
+                description = "超过该时间水泵自动关闭",
+                value = pumpMaxDurationThreshold,
+                minValue = 5,
+                maxValue = 3600,
+                unit = "秒",
+                onValueChange = { newValue: String ->
+                    pumpMaxDurationThreshold = newValue
+                }
+            )
         }
     }
 
@@ -800,6 +864,7 @@ class DeviceDetailsActivity : ComponentActivity() {
         value: Int,
         minValue: Int = 0,
         maxValue: Int = 100,
+        scalingFactor: Float = 1f,
         unit: String,
         onValueChange: (Int) -> Unit
     ) {
@@ -837,7 +902,7 @@ class DeviceDetailsActivity : ComponentActivity() {
                         )
                     }
                     Text(
-                        text = "$value$unit",
+                        text = "${(value * scalingFactor).toInt()}$unit",
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
                         color = LightGreen,
@@ -862,6 +927,70 @@ class DeviceDetailsActivity : ComponentActivity() {
                     modifier = Modifier
                         .fillMaxWidth()
                 )
+            }
+        }
+    }
+
+    @Composable
+    fun ThresholdCard(
+        modifier: Modifier = Modifier,
+        title: String,
+        description: String,
+        value: String,
+        minValue: Int = 0,
+        maxValue: Int = 100,
+        unit: String,
+        onValueChange: (String) -> Unit
+    ) {
+        require(minValue < maxValue) { "minValue ($minValue) must be less than maxValue ($maxValue)" }
+
+        MicaCard(
+            modifier = modifier.fillMaxWidth(),
+            padding = XPadding.all(15),
+            horizontalAlignment = Alignment.Start,
+            onClick = {}
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = title,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = BlackGray,
+                    maxLines = 1
+                )
+
+                Text(
+                    text = description,
+                    fontSize = 12.sp,
+                    color = Gray,
+                    maxLines = 1
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(15.dp)
+                ) {
+                    AliveTextField(
+                        modifier = Modifier.weight(1f),
+                        label = "$minValue $unit ~ $maxValue $unit",
+                        placeholder = "请输入阈值",
+                        maxLines = 1,
+                        value = value,
+                        onValueChange = onValueChange
+                    )
+                    Text(
+                        text = unit,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = LightGreen,
+                        maxLines = 1
+                    )
+                }
             }
         }
     }
