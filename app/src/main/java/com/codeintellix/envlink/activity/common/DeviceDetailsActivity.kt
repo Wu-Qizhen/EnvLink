@@ -238,7 +238,7 @@ class DeviceDetailsActivity : ComponentActivity() {
                 if (abnormalStatuses.isEmpty()) {
                     "环境良好"
                 } else {
-                    abnormalStatuses.joinToString("，") { "${it.title}${it.status}" }
+                    abnormalStatuses.joinToString(" | ") { "${it.title}${it.status}" }
                 }
             }
         }
@@ -402,6 +402,8 @@ class DeviceDetailsActivity : ComponentActivity() {
                             draftParams = draftParams,
                             isParamsChanged = isParamsChanged
                         )
+
+                        CalibrationArea()
                     }
                 }
             }
@@ -1195,6 +1197,127 @@ class DeviceDetailsActivity : ComponentActivity() {
                         maxLines = 1
                     )
                 }
+            }
+        }
+    }
+
+    @Composable
+    fun CalibrationArea(
+
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(15.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(5.dp),
+                verticalAlignment = Alignment.Bottom
+            ) {
+                Text(
+                    text = "校准",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = BlackGray
+                )
+
+                Text(
+                    text = "配对后建议立即进行一次校准",
+                    fontSize = 12.sp,
+                    color = Gray
+                )
+            }
+
+            CalibrationCard(
+                iconColor = SkyBlue,
+                title = "校准温湿度",
+                description = "将进行温湿度传感器校准流程"
+            ) {
+
+            }
+
+            CalibrationCard(
+                iconColor = Yellow,
+                title = "校准光照",
+                description = "将进行光照传感器校准流程"
+            ) {
+
+            }
+
+            CalibrationCard(
+                iconColor = OrangeYellow,
+                title = "校准土壤湿度",
+                description = "将进行土壤湿度传感器校准流程"
+            ) {
+
+            }
+        }
+    }
+
+    @Composable
+    fun CalibrationCard(
+        modifier: Modifier = Modifier,
+        iconColor: Color,
+        title: String,
+        description: String,
+        onClick: () -> Unit
+    ) {
+        MicaCard(
+            modifier = modifier.fillMaxWidth(),
+            padding = XPadding.all(15),
+            horizontalAlignment = Alignment.Start,
+            onClick = onClick
+        ) {
+            Box(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.align(Alignment.CenterStart),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(iconColor),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_construct),
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(10.dp))
+
+                    Column {
+                        Text(
+                            text = title,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = BlackGray,
+                            maxLines = 1
+                        )
+
+                        Text(
+                            text = description,
+                            fontSize = 12.sp,
+                            color = Gray,
+                            maxLines = 1
+                        )
+                    }
+                }
+
+                Icon(
+                    modifier = Modifier
+                        .size(20.dp)
+                        .align(Alignment.CenterEnd),
+                    painter = painterResource(R.drawable.ic_arrow_right),
+                    contentDescription = null,
+                    tint = Gray
+                )
             }
         }
     }
