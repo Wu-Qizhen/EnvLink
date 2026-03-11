@@ -28,6 +28,8 @@ import com.codeintellix.envlink.entity.actuator.ActuatorType
 import com.codeintellix.envlink.entity.device.BleUuid
 import com.codeintellix.envlink.entity.device.ConnectionState
 import com.codeintellix.envlink.entity.device.Device
+import com.codeintellix.envlink.entity.protocol.CalibrationEvent
+import com.codeintellix.envlink.entity.protocol.CalibrationType
 import com.codeintellix.envlink.entity.protocol.CommandType
 import com.codeintellix.envlink.entity.protocol.ControlMode
 import com.codeintellix.envlink.entity.protocol.ControlParams
@@ -39,8 +41,11 @@ import com.google.gson.Gson
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
@@ -67,6 +72,7 @@ class DeviceDetailViewModel(
     private var isPollingActive = false // 定时任务是否在运行
     private var pendingActuatorType: ActuatorType? = null // 记录最近一次操作（用于对比结果）
     private var pendingTargetState: ActuatorState? = null
+    private var pendingCalibrationType: CalibrationType? = null
 
     companion object {
         private const val MIN_REFRESH_INTERVAL = 5000L
@@ -117,6 +123,12 @@ class DeviceDetailViewModel(
     private val _isParamsChanged = MutableStateFlow(false)  // 界面参数是否有未保存修改
     val isParamsChanged: StateFlow<Boolean> = _isParamsChanged.asStateFlow()
 
+    // 校准
+    private val _calibrationLoading = MutableStateFlow(false)
+    val calibrationLoading: StateFlow<Boolean> = _calibrationLoading.asStateFlow()
+    private val _calibrationEvents = MutableSharedFlow<CalibrationEvent>()
+    val calibrationEvents: SharedFlow<CalibrationEvent> = _calibrationEvents.asSharedFlow()
+
     init {
         // 初始化时从 Device 实体加载上次传感器数据
         loadLatestSensorDataVO()
@@ -129,8 +141,7 @@ class DeviceDetailViewModel(
                 title = "环境温度",
                 value = "--",
                 unit = "℃",
-                status = "未知",
-                statusColor = OrangeRed,
+                status = SensorStatus.UNKNOWN,
                 progress = 0.5f,
                 icon = R.drawable.ic_thermometer,
                 iconColor = listOf(LightGreen, YellowGreen)
@@ -139,8 +150,7 @@ class DeviceDetailViewModel(
                 title = "空气湿度",
                 value = "--",
                 unit = "%",
-                status = "未知",
-                statusColor = OrangeRed,
+                status = SensorStatus.UNKNOWN,
                 progress = 0.5f,
                 icon = R.drawable.ic_water,
                 iconColor = listOf(SkyBlue, DarkBlue)
@@ -149,8 +159,7 @@ class DeviceDetailViewModel(
                 title = "光照强度",
                 value = "--",
                 unit = "Lux",
-                status = "未知",
-                statusColor = OrangeRed,
+                status = SensorStatus.UNKNOWN,
                 progress = 0.5f,
                 icon = R.drawable.ic_sunny,
                 iconColor = listOf(Yellow, OrangeYellow)
@@ -159,8 +168,7 @@ class DeviceDetailViewModel(
                 title = "土壤湿度",
                 value = "--",
                 unit = "%",
-                status = "未知",
-                statusColor = OrangeRed,
+                status = SensorStatus.UNKNOWN,
                 progress = 0.5f,
                 icon = R.drawable.ic_moisture,
                 iconColor = listOf(OrangeYellow, OrangeRed)
@@ -198,10 +206,7 @@ class DeviceDetailViewModel(
                 unit = "℃",
                 status = if ((statusFlags and 0x02) != 0) SensorDataHelper.getTemperatureStatus(
                     sensorData.temperature
-                ).label else SensorStatus.INVALID.label,
-                statusColor = if ((statusFlags and 0x02) != 0) SensorDataHelper.getTemperatureStatus(
-                    sensorData.temperature
-                ).color else SensorStatus.INVALID.color,
+                ) else SensorStatus.INVALID,
                 progress = SensorDataHelper.mapTemperatureToProgress(sensorData.temperature),
                 icon = R.drawable.ic_thermometer,
                 iconColor = listOf(LightGreen, YellowGreen)
@@ -212,10 +217,7 @@ class DeviceDetailViewModel(
                 unit = "%",
                 status = if ((statusFlags and 0x04) != 0) SensorDataHelper.getHumidityStatus(
                     sensorData.humidity
-                ).label else SensorStatus.INVALID.label,
-                statusColor = if ((statusFlags and 0x04) != 0) SensorDataHelper.getHumidityStatus(
-                    sensorData.humidity
-                ).color else SensorStatus.INVALID.color,
+                ) else SensorStatus.INVALID,
                 progress = SensorDataHelper.mapHumidityToProgress(sensorData.humidity),
                 icon = R.drawable.ic_water,
                 iconColor = listOf(SkyBlue, DarkBlue)
@@ -224,10 +226,7 @@ class DeviceDetailViewModel(
                 title = "光照强度",
                 value = sensorData.lightIntensity.toString(),
                 unit = "Lux",
-                status = if ((statusFlags and 0x08) != 0) SensorDataHelper.getLightStatus(sensorData.lightIntensity.toFloat()).label else SensorStatus.INVALID.label,
-                statusColor = if ((statusFlags and 0x08) != 0) SensorDataHelper.getLightStatus(
-                    sensorData.lightIntensity.toFloat()
-                ).color else SensorStatus.INVALID.color,
+                status = if ((statusFlags and 0x08) != 0) SensorDataHelper.getLightStatus(sensorData.lightIntensity.toFloat()) else SensorStatus.INVALID,
                 progress = SensorDataHelper.mapLightToProgress(sensorData.lightIntensity.toFloat()),
                 icon = R.drawable.ic_sunny,
                 iconColor = listOf(Yellow, OrangeYellow)
@@ -238,10 +237,7 @@ class DeviceDetailViewModel(
                 unit = "%",
                 status = if ((statusFlags and 0x01) != 0) SensorDataHelper.getSoilMoistureStatus(
                     sensorData.soilMoisture
-                ).label else SensorStatus.INVALID.label,
-                statusColor = if ((statusFlags and 0x01) != 0) SensorDataHelper.getSoilMoistureStatus(
-                    sensorData.soilMoisture
-                ).color else SensorStatus.INVALID.color,
+                ) else SensorStatus.INVALID,
                 progress = SensorDataHelper.mapSoilMoistureToProgress(sensorData.soilMoisture),
                 icon = R.drawable.ic_moisture,
                 iconColor = listOf(OrangeYellow, OrangeRed)
@@ -425,22 +421,27 @@ class DeviceDetailViewModel(
 
         when (parsed.command) {
             CommandType.ACK.value -> {
-                // TODO
                 when (parsed.payload.size) {
-                    13 -> BleProtocolHelper.parseSensorData(parsed.payload)?.let { sensorData ->
-                        updateSensorData(sensorData)
+                    13 -> { // 传感器数据
+                        BleProtocolHelper.parseSensorData(parsed.payload)?.let { sensorData ->
+                            updateSensorData(sensorData)
+                        }
                     }
 
-                    3 -> BleProtocolHelper.parseActuatorStatus(parsed.payload)?.let { status ->
-                        updateActuatorStatus(status)
+                    3 -> { // 执行器状态
+                        BleProtocolHelper.parseActuatorStatus(parsed.payload)?.let { status ->
+                            updateActuatorStatus(status)
+                        }
                     }
 
-                    10 -> BleProtocolHelper.parseSystemInfo(parsed.payload)?.let { info ->
-                        _controlMode.value = info.controlMode
-                        _systemInfo.value = info
+                    10, 12 -> { // 系统信息
+                        BleProtocolHelper.parseSystemInfo(parsed.payload)?.let { info ->
+                            _controlMode.value = info.controlMode
+                            _systemInfo.value = info
+                        }
                     }
 
-                    32 -> { // 控制参数响应
+                    32 -> { // 控制参数
                         BleProtocolHelper.parseControlParams(parsed.payload)?.let { params ->
                             _controlParams.value = params
                             _draftParams.value = params // 同步草稿
@@ -455,11 +456,29 @@ class DeviceDetailViewModel(
 
                     else -> Log.w("DeviceDetail", "未知负载长度：${parsed.payload.size}")
                 }
+
+                if (pendingCalibrationType != null) {
+                    val type = pendingCalibrationType   // 先保存到局部变量
+                    pendingCalibrationType = null       // 立即清空，避免并发问题
+                    _calibrationLoading.value = false
+                    viewModelScope.launch {
+                        _calibrationEvents.emit(CalibrationEvent(type!!, true))
+                    }
+                }
             }
 
             CommandType.ERROR.value -> {
-                _connectionState.value = ConnectionState.Failed("设备返回错误")
-                updateToastMessage("操作失败")
+                if (pendingCalibrationType != null) {
+                    val type = pendingCalibrationType
+                    pendingCalibrationType = null
+                    _calibrationLoading.value = false
+                    viewModelScope.launch {
+                        _calibrationEvents.emit(CalibrationEvent(type!!, false))
+                    }
+                } else {
+                    _connectionState.value = ConnectionState.Failed("设备返回错误")
+                    updateToastMessage("操作失败")
+                }
             }
 
             else -> {
@@ -565,6 +584,16 @@ class DeviceDetailViewModel(
             delay(300)
             fetchControlParams(force = true)
         }
+    }
+
+    fun calibrate(type: CalibrationType) {
+        if (!canSendCommand()) {
+            viewModelScope.launch { _toastMessage.send("设备未连接") }
+            return
+        }
+        pendingCalibrationType = type
+        _calibrationLoading.value = true
+        sendCommand(BleProtocolHelper.buildCalibrateCommand(type))
     }
 
     fun refresh() {

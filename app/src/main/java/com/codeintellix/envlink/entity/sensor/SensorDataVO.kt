@@ -12,8 +12,7 @@ data class SensorDataVO(
     var title: String, // 传感器名称
     var value: String, // 数值”
     var unit: String, // 单位
-    var status: String, // 状态文字
-    var statusColor: Color, // 状态标签背景色
+    var status: SensorStatus, // 状态
     var progress: Float, // 进度条百分比
     @DrawableRes var icon: Int, // 图标
     var iconColor: List<Color> // 图标背景渐变

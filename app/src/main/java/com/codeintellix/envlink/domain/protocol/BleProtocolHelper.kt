@@ -2,6 +2,7 @@ package com.codeintellix.envlink.domain.protocol
 
 import com.codeintellix.envlink.entity.actuator.ActuatorState
 import com.codeintellix.envlink.entity.actuator.ActuatorStatus
+import com.codeintellix.envlink.entity.protocol.CalibrationType
 import com.codeintellix.envlink.entity.protocol.CommandType
 import com.codeintellix.envlink.entity.protocol.ControlMode
 import com.codeintellix.envlink.entity.protocol.ControlParams
@@ -81,6 +82,11 @@ object BleProtocolHelper {
         return buildCommand(CommandType.SET_PARAMS.value, data)
     }
 
+    fun buildCalibrateCommand(type: CalibrationType): ByteArray {
+        require(type.value in 0..5) { "Invalid calibration type" }
+        return buildCommand(CommandType.CALIBRATE.value, byteArrayOf(type.value.toByte()))
+    }
+
     private fun buildCommand(cmd: Int, data: ByteArray): ByteArray {
         val length = data.size
         val buffer = ByteArray(4 + length + 1) // 起始 + 命令 + 长度 + 数据 + 校验 + 结束
@@ -150,17 +156,22 @@ object BleProtocolHelper {
     }
 
     fun parseSystemInfo(payload: ByteArray): SystemInfo? {
-        if (payload.size != 10) return null
+        // 允许 payload 长度为 10 或 12
+        if (payload.size != 10 && payload.size != 12) return null
+
         val versionMajor = payload[0].toInt() and 0xFF
         val versionMinor = payload[1].toInt() and 0xFF
         val versionPatch = payload[2].toInt() and 0xFF
         // payload[3] 是保留字节，跳过
+
         val uptime = ((payload[7].toInt() and 0xFF) shl 24) or
                 ((payload[6].toInt() and 0xFF) shl 16) or
                 ((payload[5].toInt() and 0xFF) shl 8) or
                 (payload[4].toInt() and 0xFF)
+
         val systemState = payload[8].toInt() and 0xFF
         val modeValue = payload[9].toInt() and 0xFF
+
         val controlMode = ControlMode.Companion.fromInt(modeValue) ?: ControlMode.MANUAL
         return SystemInfo(
             versionMajor = versionMajor,
