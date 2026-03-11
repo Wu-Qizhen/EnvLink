@@ -78,6 +78,7 @@ import com.codeintellix.envlink.data.device.DeviceListViewModel
 import com.codeintellix.envlink.data.device.DeviceListViewModelFactory
 import com.codeintellix.envlink.data.house.HouseNameManager
 import com.codeintellix.envlink.data.weather.WeatherViewModel
+import com.codeintellix.envlink.entity.cosnt.ActivityExtra
 import com.codeintellix.envlink.entity.device.Device
 import com.codeintellix.envlink.entity.house.RoomType
 import com.codeintellix.envlink.entity.sensor.SensorData
@@ -590,7 +591,7 @@ fun DeviceCard(
         padding = XPadding.all(10),
         onClick = {
             val intent = Intent(context, DeviceDetailsActivity::class.java).apply {
-                putExtra("device_address", device.address)
+                putExtra(ActivityExtra.DEVICE_ADDRESS_EXTRA, device.address)
             }
             context.startActivity(intent)
         }

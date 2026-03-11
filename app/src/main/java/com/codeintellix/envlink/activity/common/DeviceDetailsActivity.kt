@@ -5,8 +5,11 @@ import aethex.matrix.foundation.color.withAlpha
 import aethex.matrix.foundation.property.XPadding
 import aethex.matrix.ui.XBackground
 import aethex.matrix.ui.XCard
+import aethex.matrix.ui.XDialog
 import aethex.matrix.ui.XHeader
+import aethex.matrix.ui.XIcon
 import aethex.matrix.ui.XItem
+import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -79,7 +82,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.codeintellix.envlink.R
@@ -100,6 +102,7 @@ import com.codeintellix.envlink.data.device.DeviceDetailViewModel
 import com.codeintellix.envlink.data.device.DeviceDetailViewModelFactory
 import com.codeintellix.envlink.entity.actuator.ActuatorState
 import com.codeintellix.envlink.entity.actuator.ActuatorType
+import com.codeintellix.envlink.entity.cosnt.ActivityExtra
 import com.codeintellix.envlink.entity.device.ConnectionState
 import com.codeintellix.envlink.entity.protocol.CalibrationType
 import com.codeintellix.envlink.entity.protocol.ControlMode
@@ -165,7 +168,7 @@ class DeviceDetailsActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val deviceAddress = intent.getStringExtra("device_address") ?: ""
+        val deviceAddress = intent.getStringExtra(ActivityExtra.DEVICE_ADDRESS_EXTRA) ?: ""
 
         enableEdgeToEdge()
         setContent {
@@ -314,7 +317,36 @@ class DeviceDetailsActivity : ComponentActivity() {
                     fontWeight = FontWeight.Normal,
                     fontSize = 28,
                     iconColor = Color.Black,
-                    headerPadding = XPadding.all(20)
+                    headerPadding = XPadding.all(20),
+                    content = {
+                        XIcon.RoundPlane(
+                            icon = R.drawable.ic_application,
+                            iconSize = 30,
+                            planeSize = 30,
+                            color = XColorGroup(
+                                background = Color.Transparent,
+                                activeBackground = Color.Transparent,
+                                content = Color.Black,
+                                activeContent = Gray,
+                                border = Color.Transparent
+                            ),
+                            onClick = {
+                                val intent = Intent(
+                                    this@DeviceDetailsActivity,
+                                    DeviceSettingsActivity::class.java
+                                )
+                                intent.putExtra(
+                                    ActivityExtra.DEVICE_ADDRESS_EXTRA,
+                                    deviceAddress
+                                )
+                                intent.putExtra(
+                                    ActivityExtra.DEVICE_SYSTEM_VERSION_EXTRA,
+                                    "${systemInfo?.versionMajor}.${systemInfo?.versionMinor}.${systemInfo?.versionPatch}"
+                                )
+                                startActivity(intent)
+                            }
+                        )
+                    }
                 )
 
                 Canvas(
@@ -1437,94 +1469,89 @@ class DeviceDetailsActivity : ComponentActivity() {
             }
         }
 
-        Dialog(onDismissRequest = onDismiss) {
-            XCard.Lively(
+        XDialog.Empty(
+            backgroundColor = Color.White,
+            padding = XPadding.all(25),
+            borderRadius = 25,
+            onDismiss = onDismiss
+        ) {
+            Column(
                 modifier = Modifier.fillMaxWidth(),
-                padding = XPadding.all(20),
-                borderRadius = 20,
-                color = XColorGroup(
-                    background = Color.White,
-                    activeBackground = GrayWhite
-                )
+                horizontalAlignment = Alignment.Start
             ) {
-                Column(
+                // 标题
+                Text(
+                    text = title,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = BlackGray
+                )
+
+                Spacer(modifier = Modifier.height(15.dp))
+
+                // 步骤标题
+                Text(
+                    text = "步骤 ${currentStepIndex + 1}/${steps.size}：${steps[currentStepIndex].title}",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = LightGreen
+                )
+
+                Spacer(modifier = Modifier.height(5.dp))
+
+                // 详细操作指引
+                Text(
+                    text = steps[currentStepIndex].instruction,
+                    fontSize = 16.sp,
+                    color = BlackGray
+                )
+
+                Spacer(modifier = Modifier.height(15.dp))
+
+                // 提示文字
+                Text(
+                    text = "请按照指引操作，然后点击“开始校准”",
+                    fontSize = 12.sp,
+                    color = Gray
+                )
+
+                Spacer(modifier = Modifier.height(15.dp))
+
+                // 按钮行
+                Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.Start
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // 标题
-                    Text(
-                        text = title,
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = BlackGray
-                    )
-
-                    Spacer(modifier = Modifier.height(15.dp))
-
-                    // 步骤标题
-                    Text(
-                        text = "步骤 ${currentStepIndex + 1}/${steps.size}：${steps[currentStepIndex].title}",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = BlackGray
-                    )
-
-                    Spacer(modifier = Modifier.height(5.dp))
-
-                    // 详细操作指引
-                    Text(
-                        text = steps[currentStepIndex].instruction,
-                        fontSize = 16.sp,
-                        color = BlackGray
-                    )
-
-                    Spacer(modifier = Modifier.height(15.dp))
-
-                    // 提示文字
-                    Text(
-                        text = "请按照指引操作，然后点击“开始校准”",
-                        fontSize = 12.sp,
-                        color = Gray
-                    )
-
-                    Spacer(modifier = Modifier.height(15.dp))
-
-                    // 按钮行
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        if (calibrationLoading) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(30.dp),
-                                color = LightGreen
-                            )
-                            Spacer(modifier = Modifier.width(15.dp))
-                        }
-
-                        XItem.Button(
-                            text = "取消",
-                            color = XColorGroup(
-                                background = OrangeRed,
-                                content = Color.White
-                            ),
-                            onClick = onDismiss,
-                            enabled = !calibrationLoading
+                    if (calibrationLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(30.dp),
+                            color = LightGreen
                         )
-
                         Spacer(modifier = Modifier.width(15.dp))
-
-                        XItem.Button(
-                            text = "开始校准",
-                            color = XColorGroup(
-                                background = LightGreen,
-                                content = Color.White
-                            ),
-                            onClick = { viewModel.calibrate(steps[currentStepIndex].type) },
-                            enabled = !calibrationLoading
-                        )
                     }
+
+                    XItem.Button(
+                        text = "取消",
+                        color = XColorGroup(
+                            background = OrangeRed,
+                            content = Color.White
+                        ),
+                        onClick = onDismiss,
+                        enabled = !calibrationLoading
+                    )
+
+                    Spacer(modifier = Modifier.width(15.dp))
+
+                    XItem.Button(
+                        text = "开始校准",
+                        color = XColorGroup(
+                            background = LightGreen,
+                            content = Color.White
+                        ),
+                        onClick = { viewModel.calibrate(steps[currentStepIndex].type) },
+                        enabled = !calibrationLoading
+                    )
                 }
             }
         }
