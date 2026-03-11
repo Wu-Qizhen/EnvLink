@@ -6,6 +6,7 @@ import aethex.matrix.foundation.property.XPadding
 import aethex.matrix.ui.XBackground
 import aethex.matrix.ui.XCard
 import aethex.matrix.ui.XHeader
+import aethex.matrix.ui.XItem
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -78,6 +79,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.codeintellix.envlink.R
@@ -99,10 +101,14 @@ import com.codeintellix.envlink.data.device.DeviceDetailViewModelFactory
 import com.codeintellix.envlink.entity.actuator.ActuatorState
 import com.codeintellix.envlink.entity.actuator.ActuatorType
 import com.codeintellix.envlink.entity.device.ConnectionState
+import com.codeintellix.envlink.entity.protocol.CalibrationType
 import com.codeintellix.envlink.entity.protocol.ControlMode
 import com.codeintellix.envlink.entity.protocol.ControlParams
+import com.codeintellix.envlink.entity.protocol.EnvironmentState
 import com.codeintellix.envlink.entity.protocol.SystemInfo
+import com.codeintellix.envlink.entity.sensor.CalibrationStep
 import com.codeintellix.envlink.entity.sensor.SensorDataVO
+import com.codeintellix.envlink.entity.sensor.SensorStatus
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -231,14 +237,14 @@ class DeviceDetailsActivity : ComponentActivity() {
 
         // 智能评估结论
         val assessment = remember(sensorData, isConnected) {
-            if (!isConnected || sensorData.any { it.status == "未知" }) {
-                "环境未知"
+            if (!isConnected || sensorData.any { it.status == SensorStatus.UNKNOWN }) {
+                EnvironmentState.UNKNOWN
             } else {
-                val abnormalStatuses = sensorData.filter { it.status != "正常" }
+                val abnormalStatuses = sensorData.filter { it.status != SensorStatus.NORMAL }
                 if (abnormalStatuses.isEmpty()) {
-                    "环境良好"
+                    EnvironmentState.GOOD
                 } else {
-                    abnormalStatuses.joinToString(" | ") { "${it.title}${it.status}" }
+                    EnvironmentState.WARN
                 }
             }
         }
@@ -403,7 +409,10 @@ class DeviceDetailsActivity : ComponentActivity() {
                             isParamsChanged = isParamsChanged
                         )
 
-                        CalibrationArea()
+                        CalibrationArea(
+                            viewModel = viewModel,
+                            isConnected = isConnected
+                        )
                     }
                 }
             }
@@ -499,22 +508,22 @@ class DeviceDetailsActivity : ComponentActivity() {
     fun StatusArea(
         isConnected: Boolean,
         systemInfo: SystemInfo?,
-        assessment: String
+        assessment: EnvironmentState
     ) {
         val uptimeText = remember(systemInfo) {
-            systemInfo?.uptimeSeconds?.let { formatUptime(it) } ?: "--"
+            systemInfo?.uptimeSeconds?.let { formatUptime(it) } ?: "运行状态未知"
         }
 
         Column {
             Spacer(modifier = Modifier.height(100.dp))
             Text(
-                text = assessment,
+                text = assessment.description,
                 fontSize = 36.sp,
                 fontWeight = FontWeight.Thin,
-                color = LightGreen
+                color = assessment.color
             )
             Spacer(modifier = Modifier.height(30.dp))
-            if (isConnected && systemInfo != null) {
+            if (isConnected) {
                 Text(
                     text = "设备运行正常",
                     fontSize = 20.sp,
@@ -629,14 +638,14 @@ class DeviceDetailsActivity : ComponentActivity() {
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(50))
-                        .background(data.statusColor.withAlpha(0.2f))
+                        .background(data.status.color.withAlpha(0.2f))
                         .padding(horizontal = 10.dp, vertical = 5.dp)
                 ) {
                     Text(
-                        text = data.status,
+                        text = data.status.label,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Medium,
-                        color = data.statusColor
+                        color = data.status.color
                     )
                 }
             }
@@ -1203,8 +1212,12 @@ class DeviceDetailsActivity : ComponentActivity() {
 
     @Composable
     fun CalibrationArea(
-
+        viewModel: DeviceDetailViewModel,
+        isConnected: Boolean
     ) {
+        var showSoilWizard by remember { mutableStateOf(false) }
+        var showLightWizard by remember { mutableStateOf(false) }
+
         Column(
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(15.dp)
@@ -1215,7 +1228,7 @@ class DeviceDetailsActivity : ComponentActivity() {
                 verticalAlignment = Alignment.Bottom
             ) {
                 Text(
-                    text = "校准",
+                    text = "传感器校准",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
                     color = BlackGray
@@ -1228,28 +1241,98 @@ class DeviceDetailsActivity : ComponentActivity() {
                 )
             }
 
-            CalibrationCard(
+            /*CalibrationCard(
                 iconColor = SkyBlue,
                 title = "校准温湿度",
                 description = "将进行温湿度传感器校准流程"
             ) {
 
-            }
+            }*/
 
             CalibrationCard(
                 iconColor = Yellow,
-                title = "校准光照",
-                description = "将进行光照传感器校准流程"
-            ) {
-
-            }
+                title = "光照强度校准",
+                description = "将进行光照传感器校准流程",
+                onClick = {
+                    if (!isConnected) {
+                        Toast.makeText(this@DeviceDetailsActivity, "设备未连接", Toast.LENGTH_SHORT)
+                            .show()
+                        return@CalibrationCard
+                    }
+                    showLightWizard = true
+                }
+            )
 
             CalibrationCard(
                 iconColor = OrangeYellow,
-                title = "校准土壤湿度",
-                description = "将进行土壤湿度传感器校准流程"
-            ) {
+                title = "土壤湿度校准",
+                description = "将进行土壤湿度传感器校准流程",
+                onClick = {
+                    if (!isConnected) {
+                        Toast.makeText(this@DeviceDetailsActivity, "设备未连接", Toast.LENGTH_SHORT)
+                            .show()
+                        return@CalibrationCard
+                    }
+                    showSoilWizard = true
+                }
+            )
 
+            // 光照校准向导
+            if (showLightWizard) {
+                CalibrationWizardDialog(
+                    title = "光照强度校准",
+                    steps = listOf(
+                        CalibrationStep(
+                            title = "遮光校准",
+                            instruction = "请将传感器完全遮光或置于完全黑暗的环境，确保无光线进入",
+                            type = CalibrationType.LIGHT_MIN
+                        ),
+                        CalibrationStep(
+                            title = "强光校准",
+                            instruction = "请将传感器置于强光下（建议在直射的太阳光下），此步可跳过",
+                            type = CalibrationType.LIGHT_MAX
+                        )
+                    ),
+                    onDismiss = { showLightWizard = false },
+                    onComplete = {
+                        showLightWizard = false
+                        Toast.makeText(
+                            this@DeviceDetailsActivity,
+                            "光照校准完成",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    },
+                    viewModel = viewModel
+                )
+            }
+
+            // 土壤湿度校准向导
+            if (showSoilWizard) {
+                CalibrationWizardDialog(
+                    title = "土壤湿度校准",
+                    steps = listOf(
+                        CalibrationStep(
+                            title = "干态校准",
+                            instruction = "请将土壤湿度传感器置于干燥空气中，确保表面无水",
+                            type = CalibrationType.SOIL_DRY
+                        ),
+                        CalibrationStep(
+                            title = "湿态校准",
+                            instruction = "请将传感器探头完全浸入水中，等待稳定",
+                            type = CalibrationType.SOIL_WET
+                        )
+                    ),
+                    onDismiss = { showSoilWizard = false },
+                    onComplete = {
+                        showSoilWizard = false
+                        Toast.makeText(
+                            this@DeviceDetailsActivity,
+                            "土壤湿度校准完成",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    },
+                    viewModel = viewModel
+                )
             }
         }
     }
@@ -1318,6 +1401,131 @@ class DeviceDetailsActivity : ComponentActivity() {
                     contentDescription = null,
                     tint = Gray
                 )
+            }
+        }
+    }
+
+    @OptIn(ExperimentalMaterial3Api::class)
+    @Composable
+    fun CalibrationWizardDialog(
+        title: String,
+        steps: List<CalibrationStep>,
+        onDismiss: () -> Unit,
+        onComplete: () -> Unit,
+        viewModel: DeviceDetailViewModel
+    ) {
+        var currentStepIndex by remember { mutableIntStateOf(0) }
+        val calibrationLoading by viewModel.calibrationLoading.collectAsState()
+
+        LaunchedEffect(Unit) {
+            viewModel.calibrationEvents.collect { event ->
+                if (currentStepIndex < steps.size && event.type == steps[currentStepIndex].type) {
+                    if (event.success) {
+                        if (currentStepIndex < steps.size - 1) {
+                            currentStepIndex++
+                        } else {
+                            onComplete()
+                        }
+                    } else {
+                        Toast.makeText(
+                            this@DeviceDetailsActivity,
+                            "校准失败，请重试",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
+            }
+        }
+
+        Dialog(onDismissRequest = onDismiss) {
+            XCard.Lively(
+                modifier = Modifier.fillMaxWidth(),
+                padding = XPadding.all(20),
+                borderRadius = 20,
+                color = XColorGroup(
+                    background = Color.White,
+                    activeBackground = GrayWhite
+                )
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.Start
+                ) {
+                    // 标题
+                    Text(
+                        text = title,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = BlackGray
+                    )
+
+                    Spacer(modifier = Modifier.height(15.dp))
+
+                    // 步骤标题
+                    Text(
+                        text = "步骤 ${currentStepIndex + 1}/${steps.size}：${steps[currentStepIndex].title}",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = BlackGray
+                    )
+
+                    Spacer(modifier = Modifier.height(5.dp))
+
+                    // 详细操作指引
+                    Text(
+                        text = steps[currentStepIndex].instruction,
+                        fontSize = 16.sp,
+                        color = BlackGray
+                    )
+
+                    Spacer(modifier = Modifier.height(15.dp))
+
+                    // 提示文字
+                    Text(
+                        text = "请按照指引操作，然后点击“开始校准”",
+                        fontSize = 12.sp,
+                        color = Gray
+                    )
+
+                    Spacer(modifier = Modifier.height(15.dp))
+
+                    // 按钮行
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (calibrationLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(30.dp),
+                                color = LightGreen
+                            )
+                            Spacer(modifier = Modifier.width(15.dp))
+                        }
+
+                        XItem.Button(
+                            text = "取消",
+                            color = XColorGroup(
+                                background = OrangeRed,
+                                content = Color.White
+                            ),
+                            onClick = onDismiss,
+                            enabled = !calibrationLoading
+                        )
+
+                        Spacer(modifier = Modifier.width(15.dp))
+
+                        XItem.Button(
+                            text = "开始校准",
+                            color = XColorGroup(
+                                background = LightGreen,
+                                content = Color.White
+                            ),
+                            onClick = { viewModel.calibrate(steps[currentStepIndex].type) },
+                            enabled = !calibrationLoading
+                        )
+                    }
+                }
             }
         }
     }
