@@ -9,6 +9,7 @@ import android.bluetooth.BluetoothGattDescriptor
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
 import android.content.Context
+import android.os.Build
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -73,6 +74,7 @@ class DeviceDetailViewModel(
     private var pendingActuatorType: ActuatorType? = null // 记录最近一次操作（用于对比结果）
     private var pendingTargetState: ActuatorState? = null
     private var pendingCalibrationType: CalibrationType? = null
+    private var pendingParamsSave: Boolean = false
 
     companion object {
         private const val MIN_REFRESH_INTERVAL = 5000L
@@ -340,7 +342,7 @@ class DeviceDetailViewModel(
                             gatt.setCharacteristicNotification(rxChar, true)
                             val descriptor = rxChar.getDescriptor(BleUuid.CCCD_UUID)
                             descriptor?.let {
-                                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                                     gatt.writeDescriptor(
                                         it,
                                         BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
@@ -359,11 +361,11 @@ class DeviceDetailViewModel(
                         // 连接成功后加载信息状态
                         startPolling()
                         viewModelScope.launch {
-                            delay(100)
+                            delay(300)
                             fetchSystemInfo()
-                            delay(100)
+                            delay(300)
                             fetchActuatorState()
-                            delay(100)
+                            delay(300)
                             fetchControlParams()
                         }
                     } else {
@@ -399,6 +401,7 @@ class DeviceDetailViewModel(
                 status: Int
             ) {
                 if (status != BluetoothGatt.GATT_SUCCESS) {
+                    handleCommandError("发送失败")
                     _connectionState.value = ConnectionState.Failed("发送失败")
                 }
             }
@@ -451,7 +454,11 @@ class DeviceDetailViewModel(
                     }
 
                     0 -> {
-                        // 设置类命令的成功响应，无需处理
+                        // 设置类命令的成功响应
+                        if (pendingParamsSave) {
+                            pendingParamsSave = false
+                            updateToastMessage("参数保存成功")
+                        }
                     }
 
                     else -> Log.w("DeviceDetail", "未知负载长度：${parsed.payload.size}")
@@ -468,13 +475,24 @@ class DeviceDetailViewModel(
             }
 
             CommandType.ERROR.value -> {
-                if (pendingCalibrationType != null) {
+                if (pendingParamsSave) {
+                    pendingParamsSave = false
+                    _paramsLoading.value = false
+                    updateToastMessage("参数保存失败")
+                } else if (pendingCalibrationType != null) {
                     val type = pendingCalibrationType
                     pendingCalibrationType = null
                     _calibrationLoading.value = false
                     viewModelScope.launch {
                         _calibrationEvents.emit(CalibrationEvent(type!!, false))
                     }
+                } else if (pendingActuatorType != null) {
+                    pendingActuatorType = null
+                    pendingTargetState = null
+                    _pumpOperationLoading.value = false
+                    _fanOperationLoading.value = false
+                    _lightOperationLoading.value = false
+                    updateToastMessage("操作失败")
                 } else {
                     _connectionState.value = ConnectionState.Failed("设备返回错误")
                     updateToastMessage("操作失败")
@@ -484,6 +502,37 @@ class DeviceDetailViewModel(
             else -> {
                 Log.w("DeviceDetail", "未知命令：${parsed.command}")
             }
+        }
+    }
+
+    private fun handleCommandError(errorMessage: String = "操作失败") {
+        var handled = false
+        if (pendingParamsSave) {
+            pendingParamsSave = false
+            _paramsLoading.value = false
+            updateToastMessage("参数保存失败")
+            handled = true
+        }
+        if (pendingCalibrationType != null) {
+            val type = pendingCalibrationType
+            pendingCalibrationType = null
+            _calibrationLoading.value = false
+            viewModelScope.launch {
+                _calibrationEvents.emit(CalibrationEvent(type!!, false))
+            }
+            handled = true
+        }
+        if (pendingActuatorType != null) {
+            pendingActuatorType = null
+            pendingTargetState = null
+            _pumpOperationLoading.value = false
+            _fanOperationLoading.value = false
+            _lightOperationLoading.value = false
+            updateToastMessage(errorMessage)
+            handled = true
+        }
+        if (!handled) {
+            updateToastMessage(errorMessage)
         }
     }
 
@@ -498,7 +547,17 @@ class DeviceDetailViewModel(
     }
 
     fun fetchActuatorState(force: Boolean = false) {
-        if (!canSendCommand()) return
+        if (!canSendCommand()) {
+            if (pendingActuatorType != null) {
+                pendingActuatorType = null
+                pendingTargetState = null
+                _pumpOperationLoading.value = false
+                _fanOperationLoading.value = false
+                _lightOperationLoading.value = false
+                updateToastMessage("获取状态失败")
+            }
+            return
+        }
         val now = System.currentTimeMillis()
         if (!force && now - lastGetActuatorTime < MIN_REFRESH_INTERVAL) return
         lastGetActuatorTime = now
@@ -511,12 +570,34 @@ class DeviceDetailViewModel(
     }
 
     fun fetchControlParams(force: Boolean = false) {
-        if (!canSendCommand()) return
+        if (!canSendCommand()) {
+            // 如果是因为保存操作触发的刷新，立即清理
+            if (pendingParamsSave) {
+                pendingParamsSave = false
+                _paramsLoading.value = false
+                updateToastMessage("参数获取失败")
+            }
+            return
+        }
         val now = System.currentTimeMillis()
         if (!force && now - lastGetParamsTime < MIN_REFRESH_INTERVAL) return
         lastGetParamsTime = now
         _paramsLoading.value = true
         sendCommand(BleProtocolHelper.buildGetControlParamsCommand())
+
+        // 超时保护：2 秒后若 loading 仍为 true 则自动重置
+        viewModelScope.launch {
+            delay(2000)
+            if (_paramsLoading.value) {
+                _paramsLoading.value = false
+                if (pendingParamsSave) {
+                    pendingParamsSave = false
+                    updateToastMessage("参数保存超时")
+                } else {
+                    updateToastMessage("获取参数超时")
+                }
+            }
+        }
     }
 
     fun setControlMode(mode: ControlMode) {
@@ -567,7 +648,6 @@ class DeviceDetailViewModel(
         _isParamsChanged.value = safeParams != _controlParams.value
     }
 
-    // TODO: 操作成功提示
     fun saveControlParams() {
         if (!canSendCommand()) {
             updateToastMessage("设备未连接")
@@ -576,11 +656,9 @@ class DeviceDetailViewModel(
         if (!_isParamsChanged.value) return
 
         viewModelScope.launch {
-            // 显示加载（可在界面上给保存按钮显示进度）
-            // 这里可以单独加一个 loading 状态
             _paramsLoading.value = true
+            pendingParamsSave = true
             sendCommand(BleProtocolHelper.buildSetControlParamsCommand(_draftParams.value))
-            // 等待 300ms 后重新获取参数以确认
             delay(300)
             fetchControlParams(force = true)
         }
@@ -617,7 +695,7 @@ class DeviceDetailViewModel(
         val gatt = this.gatt ?: return
         val char = writeCharacteristic ?: return
         try {
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 gatt.writeCharacteristic(
                     char,
                     command,
@@ -630,8 +708,8 @@ class DeviceDetailViewModel(
                 gatt.writeCharacteristic(char)
             }
         } catch (_: Exception) {
+            handleCommandError("发送命令失败")
             _connectionState.value = ConnectionState.Failed("发送异常")
-            updateToastMessage("发送命令失败")
         }
     }
 
