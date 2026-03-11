@@ -509,7 +509,7 @@ class DeviceDetailViewModel(
 
     fun setActuator(actuatorType: ActuatorType, state: ActuatorState) {
         if (!canSendCommand()) {
-            viewModelScope.launch { _toastMessage.send("设备未连接") }
+            updateToastMessage("设备未连接")
             return
         }
         when (actuatorType) {
@@ -542,6 +542,7 @@ class DeviceDetailViewModel(
         _isParamsChanged.value = safeParams != _controlParams.value
     }
 
+    // TODO: 操作成功提示
     fun saveControlParams() {
         if (!canSendCommand()) {
             updateToastMessage("设备未连接")

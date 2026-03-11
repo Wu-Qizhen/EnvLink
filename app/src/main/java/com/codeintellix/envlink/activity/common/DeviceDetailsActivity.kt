@@ -89,6 +89,7 @@ import com.codeintellix.envlink.activity.theme.Gray
 import com.codeintellix.envlink.activity.theme.GrayWhite
 import com.codeintellix.envlink.activity.theme.GreenWhite
 import com.codeintellix.envlink.activity.theme.LightGreen
+import com.codeintellix.envlink.activity.theme.OrangeRed
 import com.codeintellix.envlink.activity.theme.OrangeYellow
 import com.codeintellix.envlink.activity.theme.SkyBlue
 import com.codeintellix.envlink.activity.theme.WhiteGray
@@ -99,6 +100,7 @@ import com.codeintellix.envlink.entity.actuator.ActuatorState
 import com.codeintellix.envlink.entity.actuator.ActuatorType
 import com.codeintellix.envlink.entity.device.ConnectionState
 import com.codeintellix.envlink.entity.protocol.ControlMode
+import com.codeintellix.envlink.entity.protocol.ControlParams
 import com.codeintellix.envlink.entity.sensor.SensorDataVO
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -220,6 +222,10 @@ class DeviceDetailsActivity : ComponentActivity() {
         val pumpLoading by viewModel.pumpOperationLoading.collectAsState()
         val fanLoading by viewModel.fanOperationLoading.collectAsState()
         val lightLoading by viewModel.lightOperationLoading.collectAsState()
+        val controlParams by viewModel.controlParams.collectAsState()
+        val draftParams by viewModel.draftParams.collectAsState()
+        val isParamsChanged by viewModel.isParamsChanged.collectAsState()
+        val paramsLoading by viewModel.paramsLoading.collectAsState()
 
         /*// 当连接成功或手动刷新时触发数据获取
         LaunchedEffect(connectionState) {
@@ -371,7 +377,11 @@ class DeviceDetailsActivity : ComponentActivity() {
                             }
                         )
 
-                        ThresholdArea(viewModel = viewModel)
+                        ThresholdArea(
+                            viewModel = viewModel,
+                            draftParams = draftParams,
+                            isParamsChanged = isParamsChanged
+                        )
                     }
                 }
             }
@@ -412,6 +422,53 @@ class DeviceDetailsActivity : ComponentActivity() {
                             )
                         }
                 )
+            }
+
+            if (isParamsChanged) {
+                Box(
+                    modifier = Modifier
+                        .padding(start = 20.dp, end = 20.dp, bottom = 50.dp)
+                        .align(Alignment.BottomCenter),
+                    contentAlignment = Alignment.Center
+                ) {
+                    XCard.Lively(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(50.dp),
+                        borderRadius = 30,
+                        color = XColorGroup(
+                            background = LightGreen,
+                            activeBackground = LightGreen.withAlpha(0.8f)
+                        ),
+                        padding = XPadding.horizontal(15).vertical(10),
+                        onClick = {
+                            if (!paramsLoading) {
+                                viewModel.saveControlParams()
+                            }
+                        }
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxSize(),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            if (paramsLoading) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(30.dp),
+                                    color = Color.White
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                            }
+                            Text(
+                                text = "保存设置",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White,
+                                maxLines = 1
+                            )
+                        }
+                    }
+                }
             }
         }
     }
@@ -601,7 +658,7 @@ class DeviceDetailsActivity : ComponentActivity() {
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                horizontalArrangement = Arrangement.spacedBy(5.dp),
                 verticalAlignment = Alignment.Bottom
             ) {
                 Text(
@@ -612,7 +669,7 @@ class DeviceDetailsActivity : ComponentActivity() {
                 )
                 Text(
                     text = "仅在非智能模式下可进行手动控制",
-                    fontSize = 14.sp,
+                    fontSize = 12.sp,
                     color = Gray
                 )
             }
@@ -633,7 +690,7 @@ class DeviceDetailsActivity : ComponentActivity() {
                 title = "风扇",
                 description = "通风系统",
                 status = fanState == ActuatorState.ON,
-                enabled = !autoModeEnabled && !fanLoading,
+                enabled = isConnected && !autoModeEnabled && !fanLoading,
                 onToggle = onFanToggle
             )
 
@@ -643,7 +700,7 @@ class DeviceDetailsActivity : ComponentActivity() {
                 title = "补光灯",
                 description = "照明系统",
                 status = lightState == ActuatorState.ON,
-                enabled = !autoModeEnabled && !lightLoading,
+                enabled = isConnected && !autoModeEnabled && !lightLoading,
                 onToggle = onLightToggle
             )
 
@@ -653,7 +710,7 @@ class DeviceDetailsActivity : ComponentActivity() {
                 title = "水泵",
                 description = "灌溉系统",
                 status = pumpState == ActuatorState.ON,
-                enabled = !autoModeEnabled && !pumpLoading,
+                enabled = isConnected && !autoModeEnabled && !pumpLoading,
                 onToggle = onPumpToggle
             )
         }
@@ -743,7 +800,9 @@ class DeviceDetailsActivity : ComponentActivity() {
 
     @Composable
     fun ThresholdArea(
-        viewModel: DeviceDetailViewModel
+        viewModel: DeviceDetailViewModel,
+        draftParams: ControlParams,
+        isParamsChanged: Boolean
     ) {
         /*var moistureMinThreshold by remember { mutableIntStateOf(30) }
         var moistureMaxThreshold by remember { mutableIntStateOf(70) }
@@ -753,22 +812,35 @@ class DeviceDetailsActivity : ComponentActivity() {
         var lightIntensityMaxThreshold by remember { mutableStateOf("800") }
         var pumpMinIntervalThreshold by remember { mutableStateOf("300") }
         var pumpMaxDurationThreshold by remember { mutableStateOf("20") }*/
-
-        val controlParams by viewModel.controlParams.collectAsState()
-        val draftParams by viewModel.draftParams.collectAsState()
-        val isParamsChanged by viewModel.isParamsChanged.collectAsState()
-        val paramsLoading by viewModel.paramsLoading.collectAsState()
-
         Column(
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(15.dp)
         ) {
-            Text(
-                text = "阈值设置",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                color = BlackGray
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(5.dp),
+                verticalAlignment = Alignment.Bottom
+            ) {
+                Text(
+                    text = "阈值设置",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = BlackGray
+                )
+                if (isParamsChanged) {
+                    Text(
+                        text = "有未保存的更改",
+                        fontSize = 12.sp,
+                        color = OrangeRed
+                    )
+                } else {
+                    Text(
+                        text = "不需要的控制可设为极值",
+                        fontSize = 12.sp,
+                        color = Gray
+                    )
+                }
+            }
 
             ThresholdCard(
                 title = "温度下限",
@@ -917,46 +989,6 @@ class DeviceDetailsActivity : ComponentActivity() {
                     }
                 }
             )
-
-            if (isParamsChanged) {
-                XCard.Lively(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(50.dp),
-                    borderRadius = 30,
-                    color = XColorGroup(
-                        background = LightGreen,
-                        activeBackground = LightGreen.withAlpha(0.8f)
-                    ),
-                    padding = XPadding.horizontal(15).vertical(10),
-                    onClick = {
-                        if (!paramsLoading) {
-                            viewModel.saveControlParams()
-                        }
-                    }
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxSize(),
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        if (paramsLoading) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(30.dp),
-                                color = Color.White
-                            )
-                            Spacer(modifier = Modifier.width(10.dp))
-                        }
-                        Text(
-                            text = "保存设置",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White,
-                            maxLines = 1
-                        )
-                    }
-                }
-            }
         }
     }
 
