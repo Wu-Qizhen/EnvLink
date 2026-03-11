@@ -31,6 +31,7 @@ import com.codeintellix.envlink.entity.device.Device
 import com.codeintellix.envlink.entity.protocol.CommandType
 import com.codeintellix.envlink.entity.protocol.ControlMode
 import com.codeintellix.envlink.entity.protocol.ControlParams
+import com.codeintellix.envlink.entity.protocol.SystemInfo
 import com.codeintellix.envlink.entity.sensor.SensorData
 import com.codeintellix.envlink.entity.sensor.SensorDataVO
 import com.codeintellix.envlink.entity.sensor.SensorStatus
@@ -81,6 +82,10 @@ class DeviceDetailViewModel(
     val connectionState: StateFlow<ConnectionState> = _connectionState.asStateFlow()
     private val _receivedData = MutableStateFlow("")
     val receivedData: StateFlow<String> = _receivedData.asStateFlow()
+
+    // 系统
+    private val _systemInfo = MutableStateFlow<SystemInfo?>(null)
+    val systemInfo: StateFlow<SystemInfo?> = _systemInfo.asStateFlow()
 
     // 数据
     private val _sensorDataList = MutableStateFlow(getDefaultSensorDataVO())
@@ -432,6 +437,7 @@ class DeviceDetailViewModel(
 
                     10 -> BleProtocolHelper.parseSystemInfo(parsed.payload)?.let { info ->
                         _controlMode.value = info.controlMode
+                        _systemInfo.value = info
                     }
 
                     32 -> { // 控制参数响应
@@ -606,7 +612,9 @@ class DeviceDetailViewModel(
         viewModelScope.launch {
             while (isPollingActive) {
                 fetchSensorData()
-                delay(AUTO_REFRESH_INTERVAL)
+                delay(300)
+                fetchSystemInfo()
+                delay(AUTO_REFRESH_INTERVAL - 300)
             }
         }
     }

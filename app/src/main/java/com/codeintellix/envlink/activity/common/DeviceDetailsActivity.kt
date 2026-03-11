@@ -101,6 +101,7 @@ import com.codeintellix.envlink.entity.actuator.ActuatorType
 import com.codeintellix.envlink.entity.device.ConnectionState
 import com.codeintellix.envlink.entity.protocol.ControlMode
 import com.codeintellix.envlink.entity.protocol.ControlParams
+import com.codeintellix.envlink.entity.protocol.SystemInfo
 import com.codeintellix.envlink.entity.sensor.SensorDataVO
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -214,6 +215,7 @@ class DeviceDetailsActivity : ComponentActivity() {
         val device by viewModel.device.collectAsState()
         val connectionState by viewModel.connectionState.collectAsState()
         val isConnected = connectionState is ConnectionState.Connected
+        val systemInfo by viewModel.systemInfo.collectAsState()
         val sensorData by viewModel.sensorDataList.collectAsState()
         val controlMode by viewModel.controlMode.collectAsState()
         val pumpState by viewModel.pumpState.collectAsState()
@@ -226,6 +228,20 @@ class DeviceDetailsActivity : ComponentActivity() {
         val draftParams by viewModel.draftParams.collectAsState()
         val isParamsChanged by viewModel.isParamsChanged.collectAsState()
         val paramsLoading by viewModel.paramsLoading.collectAsState()
+
+        // 智能评估结论
+        val assessment = remember(sensorData, isConnected) {
+            if (!isConnected || sensorData.any { it.status == "未知" }) {
+                "环境未知"
+            } else {
+                val abnormalStatuses = sensorData.filter { it.status != "正常" }
+                if (abnormalStatuses.isEmpty()) {
+                    "环境良好"
+                } else {
+                    abnormalStatuses.joinToString("，") { "${it.title}${it.status}" }
+                }
+            }
+        }
 
         /*// 当连接成功或手动刷新时触发数据获取
         LaunchedEffect(connectionState) {
@@ -341,7 +357,11 @@ class DeviceDetailsActivity : ComponentActivity() {
                             .fillMaxSize(),
                         verticalArrangement = Arrangement.spacedBy(15.dp)
                     ) {
-                        StatusArea()
+                        StatusArea(
+                            isConnected = isConnected,
+                            systemInfo = systemInfo,
+                            assessment = assessment
+                        )
 
                         EnvironmentArea(sensorDataVOList = sensorData)
 
@@ -474,28 +494,65 @@ class DeviceDetailsActivity : ComponentActivity() {
     }
 
     @Composable
-    fun StatusArea() {
+    fun StatusArea(
+        isConnected: Boolean,
+        systemInfo: SystemInfo?,
+        assessment: String
+    ) {
+        val uptimeText = remember(systemInfo) {
+            systemInfo?.uptimeSeconds?.let { formatUptime(it) } ?: "--"
+        }
+
         Column {
             Spacer(modifier = Modifier.height(100.dp))
             Text(
-                text = "环境良好",
+                text = assessment,
                 fontSize = 36.sp,
                 fontWeight = FontWeight.Thin,
                 color = LightGreen
             )
             Spacer(modifier = Modifier.height(30.dp))
-            Text(
-                text = "设备运行正常",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Thin,
-                color = BlackGray
-            )
-            Text(
-                text = "已运行 72 小时",
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Thin,
-                color = Gray
-            )
+            if (isConnected && systemInfo != null) {
+                Text(
+                    text = "设备运行正常",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Thin,
+                    color = BlackGray
+                )
+                Text(
+                    text = uptimeText,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Thin,
+                    color = Gray
+                )
+            } else {
+                Text(
+                    text = "设备未连接",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Thin,
+                    color = OrangeRed
+                )
+                Text(
+                    text = "运行状态未知",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Thin,
+                    color = Gray
+                )
+            }
+        }
+    }
+
+    fun formatUptime(millis: Long): String {
+        val seconds = millis / 1000
+        return when {
+            seconds < 60 -> "刚刚启动"
+            seconds < 3600 -> "已持续运行 ${seconds / 60} 分钟"
+            seconds < 86400 -> "已持续运行 ${seconds / 3600} 小时"
+            else -> {
+                val days = seconds / 86400
+                val hours = (seconds % 86400) / 3600
+                "已持续运行 $days 天 $hours 小时"
+            }
         }
     }
 
