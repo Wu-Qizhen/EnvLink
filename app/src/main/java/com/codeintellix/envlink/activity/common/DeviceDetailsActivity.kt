@@ -799,7 +799,7 @@ class DeviceDetailsActivity : ComponentActivity() {
             modifier = modifier.fillMaxWidth(),
             padding = XPadding.all(15),
             horizontalAlignment = Alignment.Start,
-            onClick = { onToggle } // TODO
+            onClick = { }
         ) {
             Box(
                 modifier = Modifier.fillMaxWidth()
