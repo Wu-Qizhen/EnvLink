@@ -1,18 +1,17 @@
 package com.codeintellix.envlink.activity.common.screen
 
 import aethex.matrix.animation.XActivateVfx.clickVfx
-import aethex.matrix.foundation.color.XColorGroup
-import aethex.matrix.foundation.color.withAlpha
 import aethex.matrix.foundation.property.XPadding
-import aethex.matrix.ui.XCard
 import aethex.matrix.ui.XHeader
-import android.content.Intent
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -25,14 +24,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.codeintellix.envlink.R
-import com.codeintellix.envlink.activity.prototype.DeviceTestActivity
 import com.codeintellix.envlink.activity.theme.Gray
 import com.codeintellix.envlink.activity.theme.LightGreen
 import com.codeintellix.envlink.activity.theme.WhiteGray
@@ -45,7 +43,7 @@ import com.codeintellix.envlink.activity.theme.WhiteGray
 @Composable
 fun MinePage() {
     val themeColor = LightGreen
-    val context = LocalContext.current
+    // val context = LocalContext.current
     val scrollState = rememberScrollState()
     val isScrolled by remember {
         derivedStateOf { scrollState.value > 0 }
@@ -93,8 +91,27 @@ fun MinePage() {
                     .fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(15.dp)
             ) {
-                // TODO
-                XCard.Lively(
+                Box(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Spacer(modifier = Modifier.height(150.dp))
+                        Image(
+                            painter = painterResource(id = R.drawable.illustration_plant_build), // 可使用现有图标
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxWidth(0.5f)
+                        )
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(
+                            text = "建造中",
+                            fontSize = 16.sp,
+                            color = Gray
+                        )
+                    }
+                }
+
+                /*XCard.Lively(
                     modifier = Modifier
                         .fillMaxWidth(),
                     borderRadius = 30,
@@ -116,7 +133,7 @@ fun MinePage() {
                         color = Color.White,
                         maxLines = 1
                     )
-                }
+                }*/
             }
         }
 
