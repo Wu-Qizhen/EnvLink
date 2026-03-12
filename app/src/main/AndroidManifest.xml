@@ -50,6 +50,10 @@
             android:exported="false"
             android:theme="@style/Theme.EnvLink" />
         <activity
+            android:name=".activity.common.AboutActivity"
+            android:exported="false"
+            android:theme="@style/Theme.EnvLink" />
+        <activity
             android:name=".activity.prototype.DeviceTestActivity"
             android:exported="false"
             android:theme="@style/Theme.EnvLink" />

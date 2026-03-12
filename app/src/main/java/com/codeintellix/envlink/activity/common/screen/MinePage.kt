@@ -3,6 +3,7 @@ package com.codeintellix.envlink.activity.common.screen
 import aethex.matrix.animation.XActivateVfx.clickVfx
 import aethex.matrix.foundation.property.XPadding
 import aethex.matrix.ui.XHeader
+import android.content.Intent
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
@@ -24,6 +25,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -31,6 +33,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.codeintellix.envlink.R
+import com.codeintellix.envlink.activity.common.AboutActivity
+import com.codeintellix.envlink.activity.common.widget.AcrylicButton
 import com.codeintellix.envlink.activity.theme.Gray
 import com.codeintellix.envlink.activity.theme.LightGreen
 import com.codeintellix.envlink.activity.theme.WhiteGray
@@ -43,7 +47,7 @@ import com.codeintellix.envlink.activity.theme.WhiteGray
 @Composable
 fun MinePage() {
     val themeColor = LightGreen
-    // val context = LocalContext.current
+    val context = LocalContext.current
     val scrollState = rememberScrollState()
     val isScrolled by remember {
         derivedStateOf { scrollState.value > 0 }
@@ -137,16 +141,33 @@ fun MinePage() {
             }
         }
 
-        Text(
-            text = "${stringResource(id = R.string.copyrights)}\n${stringResource(id = R.string.all_rights_reserved)}",
-            textAlign = TextAlign.Center,
+        Column(
             modifier = Modifier
-                .clickVfx()
                 .fillMaxWidth()
-                .padding(bottom = 10.dp)
-                .align(Alignment.BottomCenter),
-            fontSize = 12.sp,
-            color = Gray
-        )
+                .padding(horizontal = 20.dp)
+                .align(Alignment.BottomCenter)
+        ) {
+            AcrylicButton(
+                text = "关于"
+            ) {
+                context.startActivity(
+                    Intent(context, AboutActivity::class.java)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(15.dp))
+
+            Text(
+                text = "${stringResource(id = R.string.copyrights)}\n${stringResource(id = R.string.all_rights_reserved)}",
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .clickVfx()
+                    .fillMaxWidth(),
+                fontSize = 12.sp,
+                color = Gray
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+        }
     }
 }

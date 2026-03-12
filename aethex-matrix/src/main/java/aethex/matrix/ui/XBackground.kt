@@ -166,7 +166,8 @@ object XBackground {
      */
     @Composable
     fun Circles(
-        color: Color = XThemeColor.BASE,
+        circleColor: Color = XThemeColor.BASE,
+        backgroundColor: Color = Color.Black,
         toastMargin: XPadding = XPadding.horizontal(TOAST_HORIZONTAL_MARGIN)
             .bottom(XSpacings.getComponentSpacing().value.toInt()),
         content: @Composable () -> Unit
@@ -180,7 +181,7 @@ object XBackground {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black)
+                    .background(backgroundColor)
             ) {
                 var circleHeight by remember {
                     mutableStateOf(0.dp)
@@ -197,7 +198,7 @@ object XBackground {
                         .background(
                             shape = CircleShape, brush = Brush.radialGradient(
                                 listOf(
-                                    color,
+                                    circleColor,
                                     Color.Transparent
                                 )
                             )
@@ -218,7 +219,7 @@ object XBackground {
                         .background(
                             shape = CircleShape, brush = Brush.radialGradient(
                                 listOf(
-                                    color,
+                                    circleColor,
                                     Color.Transparent
                                 )
                             )
