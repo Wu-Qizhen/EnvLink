@@ -35,7 +35,6 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -134,6 +133,7 @@ fun EnvLinkPage() {
 
     val tabs = listOf("全屋") + RoomType.getAllNames()
     var selectedTab by remember { mutableIntStateOf(0) }
+    var showRoomMenu by remember { mutableStateOf(false) }
 
     Box(
         modifier = Modifier
@@ -197,7 +197,9 @@ fun EnvLinkPage() {
                     ScrollableRowTab(
                         tabs = tabs,
                         selectedTabIndex = selectedTab,
-                        onTabSelected = { selectedTab = it },
+                        onTabSelected = {
+                            selectedTab = it
+                        },
                         modifier = Modifier
                             .fillMaxWidth()
                             .align(Alignment.CenterStart),
@@ -214,16 +216,34 @@ fun EnvLinkPage() {
                             .padding(end = 20.dp)
                             .align(Alignment.CenterEnd)
                     ) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_menu),
-                            tint = BlackGray,
-                            contentDescription = null,
-                            modifier = Modifier.size(30.dp)
+                        XIcon.RoundPlane(
+                            icon = R.drawable.ic_menu,
+                            color = XColorGroup(
+                                background = Color.Transparent,
+                                activeBackground = Color.Transparent,
+                                content = BlackGray,
+                                activeContent = Gray
+                            ),
+                            planeSize = 30,
+                            iconSize = 30,
+                            onClick = {
+                                showRoomMenu = !showRoomMenu
+                            }
                         )
                     }
                 }
 
-                DevicesArea(devices = devices)
+                // 根据选中的 Tab 过滤设备
+                val filteredDevices = if (selectedTab == 0) {
+                    // 全屋：显示所有设备
+                    devices
+                } else {
+                    // 特定房间：显示对应房间的设备
+                    val selectedRoom = tabs[selectedTab]
+                    devices.filter { it.room == selectedRoom }
+                }
+
+                DevicesArea(devices = filteredDevices)
             }
         }
 
@@ -273,6 +293,49 @@ fun EnvLinkPage() {
                     context.startActivity(Intent(context, DeviceAddActivity::class.java))
                 }
             )
+        }
+
+        // 点击外部关闭菜单
+        if (showRoomMenu) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clickVfx(onClick = {
+                        showRoomMenu = false
+                    })
+            )
+
+            MicaCard(
+                modifier = Modifier
+                    .fillMaxWidth(0.5f)
+                    .padding(horizontal = 20.dp),
+                padding = XPadding.all(10)
+            ) {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(5.dp)
+                ) {
+                    tabs.forEachIndexed { index, tab ->
+                        XItem.Button(
+                            modifier = Modifier
+                                .fillMaxWidth(),
+                            text = tab,
+                            color = XColorGroup(
+                                background = if (selectedTab == index) LightGreen.withAlpha(
+                                    0.2f
+                                ) else Color.Transparent,
+                                activeBackground = LightGreen.withAlpha(0.3f),
+                                border = null,
+                                activeBorder = null,
+                                content = if (selectedTab == index) LightGreen else BlackGray,
+                                activeContent = LightGreen
+                            )
+                        ) {
+                            selectedTab = index
+                            showRoomMenu = false
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -617,7 +680,8 @@ fun DeviceCard(
                         color = if (isOnline) BlackGray else Gray
                     )
                     Text(
-                        text = "${device.room} | ${if (isOnline) "在线" else "离线"}",
+                        // text = "${device.room} | ${if (isOnline) "在线" else "离线"}",
+                        text = device.room,
                         fontSize = 14.sp,
                         color = Gray
                     )
