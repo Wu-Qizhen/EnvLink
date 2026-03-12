@@ -539,7 +539,7 @@ class DeviceDetailsActivity : ComponentActivity() {
         assessment: EnvironmentState
     ) {
         val uptimeText = remember(systemInfo) {
-            systemInfo?.uptimeSeconds?.let { formatUptime(it) } ?: "运行状态未知"
+            systemInfo?.uptimeMills?.let { formatUptime(it) } ?: "运行状态未知"
         }
 
         Column {

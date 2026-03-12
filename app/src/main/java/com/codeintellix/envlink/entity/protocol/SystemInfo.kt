@@ -9,7 +9,7 @@ data class SystemInfo(
     val versionMajor: Int,
     val versionMinor: Int,
     val versionPatch: Int,
-    val uptimeSeconds: Long,
+    val uptimeMills: Long,
     val systemState: Int,
     val controlMode: ControlMode
 )

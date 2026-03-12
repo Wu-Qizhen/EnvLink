@@ -177,7 +177,7 @@ object BleProtocolHelper {
             versionMajor = versionMajor,
             versionMinor = versionMinor,
             versionPatch = versionPatch,
-            uptimeSeconds = uptime.toLong() and 0xFFFFFFFFL,
+            uptimeMills = uptime.toLong() and 0xFFFFFFFFL,
             systemState = systemState,
             controlMode = controlMode
         )
