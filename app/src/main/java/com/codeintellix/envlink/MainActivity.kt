@@ -1,16 +1,15 @@
 package com.codeintellix.envlink
 
-import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
 import com.codeintellix.envlink.activity.common.screen.MainScreen
 import com.codeintellix.envlink.activity.common.screen.SplashScreen
+import com.codeintellix.envlink.entity.cosnt.ActivityExtra
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -24,13 +23,22 @@ import kotlinx.coroutines.launch
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
-        // 显示启动画面并初始化应用
-        showSplashScreen()
 
-        // 延迟后初始化应用
-        CoroutineScope(Dispatchers.Main).launch {
-            delay(1000) // 强制显示
+        val showSplash: Boolean =
+            intent.getBooleanExtra(ActivityExtra.SHOW_SPLASH_SCREEN_EXTRA, true)
+
+        enableEdgeToEdge()
+
+        if (showSplash) {
+            // 显示启动画面并初始化应用
+            showSplashScreen()
+
+            // 延迟后初始化应用
+            CoroutineScope(Dispatchers.Main).launch {
+                delay(1000) // 强制显示
+                initApp()
+            }
+        } else {
             initApp()
         }
     }

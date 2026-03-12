@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -1176,14 +1177,14 @@ object XItem {
      * Updated by Wu Qizhen on 2024.11.30
      * Updated by Wu Qizhen on 2024.12.31
      * Updated by Wu Qizhen on 2025.7.23
-     * TODO
      */
     @Composable
     fun Card(
+        modifier: Modifier = Modifier,
         icon: Int,
         text: String,
-        cardSize: Int = 85,
         iconSize: Int = 30,
+        aspectRatio: Float = 1f,
         onClick: () -> Unit
     ) {
         val interactionSource = remember { MutableInteractionSource() }
@@ -1192,9 +1193,9 @@ object XItem {
             if (isPressed.value) BACKGROUND_GRAY_PRESSED else BACKGROUND_GRAY
 
         Box(
-            modifier = Modifier
+            modifier = modifier
                 .clickVfx(interactionSource, true, onClick)
-                .size(cardSize.dp)
+                .aspectRatio(aspectRatio)
                 .background(backgroundColor, RoundedCornerShape(15.dp))
                 .border(
                     width = BORDER_WIDTH,

@@ -6,6 +6,7 @@ import aethex.matrix.ui.XBackground
 import aethex.matrix.ui.XDialog
 import aethex.matrix.ui.XHeader
 import aethex.matrix.ui.XItem
+import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -36,6 +37,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -46,6 +48,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.codeintellix.envlink.MainActivity
 import com.codeintellix.envlink.R
 import com.codeintellix.envlink.activity.common.widget.AcrylicButton
 import com.codeintellix.envlink.activity.common.widget.AliveTextField
@@ -95,17 +99,13 @@ class DeviceSettingsActivity : ComponentActivity() {
             derivedStateOf { scrollState.value > 0 }
         }
 
-        val scope = androidx.compose.runtime.rememberCoroutineScope()
-
-        val viewModel: DeviceDetailViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
+        val scope = rememberCoroutineScope()
+        val viewModel: DeviceDetailViewModel = viewModel(
             factory = DeviceDetailViewModelFactory(application, deviceAddress)
         )
         val device by viewModel.device.collectAsState()
-
         var deviceName by remember { mutableStateOf(device?.name ?: "") }
-        var isEditingName by remember { mutableStateOf(false) }
-
-        // 删除设备按钮
+        var showEditDialog by remember { mutableStateOf(false) }
         var showDeleteDialog by remember { mutableStateOf(false) }
 
         Column(
@@ -149,7 +149,10 @@ class DeviceSettingsActivity : ComponentActivity() {
                 // 设备名称设置
                 MicaCard(
                     modifier = Modifier.fillMaxWidth(),
-                    onClick = { isEditingName = true }
+                    onClick = {
+                        deviceName = device?.name ?: ""
+                        showEditDialog = true
+                    }
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -179,16 +182,16 @@ class DeviceSettingsActivity : ComponentActivity() {
                     }
                 }
 
-                if (isEditingName) {
+                if (showEditDialog) {
                     XDialog.Empty(
                         backgroundColor = Color.White,
                         padding = XPadding.all(25),
                         borderRadius = 25,
-                        onDismiss = { isEditingName = false }
+                        onDismiss = { showEditDialog = false }
                     ) {
                         Text(
                             text = "设备名称",
-                            fontSize = 16.sp,
+                            fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,
                             color = BlackGray
                         )
@@ -214,7 +217,7 @@ class DeviceSettingsActivity : ComponentActivity() {
                                     content = Color.White
                                 ),
                                 onClick = {
-                                    isEditingName = false
+                                    showEditDialog = false
                                     deviceName = device?.name ?: ""
                                 },
                             )
@@ -236,7 +239,7 @@ class DeviceSettingsActivity : ComponentActivity() {
                                                 "设备名称修改成功",
                                                 Toast.LENGTH_SHORT
                                             ).show()
-                                            isEditingName = false
+                                            showEditDialog = false
                                         }
                                     }
                                 },
@@ -282,7 +285,7 @@ class DeviceSettingsActivity : ComponentActivity() {
                     Spacer(modifier = Modifier.height(10.dp))
                     InfoRow(
                         label = "系统版本",
-                        value = "V$deviceSystemVersion"
+                        value = "Version $deviceSystemVersion"
                     )
                 }
                 AcrylicButton(
@@ -293,26 +296,86 @@ class DeviceSettingsActivity : ComponentActivity() {
                 }
 
                 if (showDeleteDialog) {
-                    XDialog.Confirm(
+                    XDialog.Empty(
+                        backgroundColor = Color.White,
                         padding = XPadding.all(25),
                         borderRadius = 25,
-                        backgroundColor = Color.White,
-                        dismissButtonColor = LightGreen,
-                        confirmButtonColor = OrangeRed,
-                        title = "删除确认",
-                        message = "确定要删除此设备吗？删除后可重新配对添加",
-                        dismiss = "取消",
-                        confirm = "删除",
-                        onDismiss = { showDeleteDialog = false },
-                        onConfirm = {
-                            scope.launch {
-                                // TODO
-                                DeviceRepository.getInstance(applicationContext)
-                                    .removeDevice(deviceAddress)
-                            }
-                            showDeleteDialog = false
+                        onDismiss = { showDeleteDialog = false }
+                    ) {
+                        // 标题
+                        Text(
+                            text = "删除确认",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = BlackGray
+                        )
+
+                        Spacer(modifier = Modifier.height(15.dp))
+
+                        // 详细操作指引
+                        Text(
+                            text = "确定要删除此设备吗？删除后可重新配对添加",
+                            fontSize = 16.sp,
+                            color = BlackGray
+                        )
+
+                        Spacer(modifier = Modifier.height(15.dp))
+
+                        // 按钮行
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            XItem.Button(
+                                text = "取消",
+                                color = XColorGroup(
+                                    background = LightGreen,
+                                    content = Color.White
+                                ),
+                                onClick = { showDeleteDialog = false }
+                            )
+
+                            Spacer(modifier = Modifier.width(15.dp))
+
+                            XItem.Button(
+                                text = "删除",
+                                color = XColorGroup(
+                                    background = OrangeRed,
+                                    content = Color.White
+                                ),
+                                onClick = {
+                                    scope.launch {
+                                        // 删除设备
+                                        DeviceRepository.getInstance(applicationContext)
+                                            .removeDevice(deviceAddress)
+
+                                        Toast.makeText(
+                                            this@DeviceSettingsActivity,
+                                            "设备删除成功",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+
+                                        // 跳转到主页面并清除活动栈
+                                        val intent =
+                                            Intent(
+                                                this@DeviceSettingsActivity,
+                                                MainActivity::class.java
+                                            )
+                                        intent.putExtra(
+                                            ActivityExtra.SHOW_SPLASH_SCREEN_EXTRA,
+                                            false
+                                        )
+                                        intent.flags =
+                                            Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                                        startActivity(intent)
+                                        finish()
+                                    }
+                                    showDeleteDialog = false
+                                }
+                            )
                         }
-                    )
+                    }
                 }
             }
         }
@@ -343,7 +406,7 @@ class DeviceSettingsActivity : ComponentActivity() {
     fun formatTime(timestamp: Long): String {
         val date = java.util.Date(timestamp)
         val sdf =
-            java.text.SimpleDateFormat("yyyy年MM月dd日 HH:mm:ss", java.util.Locale.getDefault())
+            java.text.SimpleDateFormat("yyyy/MM/dd HH:mm:ss", java.util.Locale.getDefault())
         return sdf.format(date)
     }
 }

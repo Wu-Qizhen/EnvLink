@@ -420,7 +420,7 @@ object XBackground {
         toastMargin: XPadding = XPadding.horizontal(TOAST_HORIZONTAL_MARGIN)
             .bottom(XSpacings.getComponentSpacing().value.toInt()),
         isBreathing: Boolean = false,
-        modifier: Modifier = Modifier.padding(horizontal = XSpacings.getComponentSpacing()),
+        @SuppressLint("ModifierParameter") modifier: Modifier = Modifier.padding(horizontal = XSpacings.getComponentSpacing()),
         horizontalAlignment: Alignment.Horizontal = Alignment.CenterHorizontally,
         content: @Composable () -> Unit
     ) {
@@ -465,7 +465,7 @@ object XBackground {
         toastMargin: XPadding = XPadding.horizontal(TOAST_HORIZONTAL_MARGIN)
             .bottom(XSpacings.getComponentSpacing().value.toInt()),
         isBreathing: Boolean = false,
-        modifier: Modifier = Modifier.padding(horizontal = XSpacings.getComponentSpacing()),
+        @SuppressLint("ModifierParameter") modifier: Modifier = Modifier.padding(horizontal = XSpacings.getComponentSpacing()),
         horizontalAlignment: Alignment.Horizontal = Alignment.CenterHorizontally,
         content: @Composable () -> Unit
     ) {

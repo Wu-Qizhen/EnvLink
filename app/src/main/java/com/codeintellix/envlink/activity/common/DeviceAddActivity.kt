@@ -166,6 +166,12 @@ class DeviceAddActivity : ComponentActivity() {
         var selectedRoom by remember { mutableStateOf("阳台") }
         val rooms = RoomType.getAllNames()
 
+        LaunchedEffect(viewModel) {
+            viewModel.toastMessage.collect { message ->
+                Toast.makeText(this@DeviceAddActivity, message, Toast.LENGTH_SHORT).show()
+            }
+        }
+
         Box(
             modifier = Modifier.fillMaxSize()
         ) {

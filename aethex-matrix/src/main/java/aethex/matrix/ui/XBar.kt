@@ -71,7 +71,6 @@ object XBar {
      * ▼ 文本标题栏
      *
      * @param title 标题
-     * @param align 对齐方式
      * @param enabledThemeColor 是否启用主题色
      * @param fontSize 文字大小
      *
@@ -81,8 +80,9 @@ object XBar {
      */
     @Composable
     fun Text(
+        modifier: Modifier = Modifier,
+        // align: XAlignType = XAlignType.CENTER,
         title: String = "主页",
-        align: XAlignType = XAlignType.CENTER,
         fontSize: Int = 20,
         enabledThemeColor: Boolean = true
     ) {
@@ -91,8 +91,7 @@ object XBar {
         val isPressed = interactionSource.collectIsPressedAsState()
 
         Row(
-            modifier = Modifier
-                .fillMaxWidth() // TODO：改为自适应可取消对齐设置
+            modifier = modifier
                 .height((fontSize * 2).dp)
                 .clickVfx(
                     interactionSource = interactionSource
@@ -100,12 +99,11 @@ object XBar {
                     (context as? ComponentActivity)?.finish()
                 },
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = if (XStats.isScreenRound()) Arrangement.Center else when (align) {
+            /*horizontalArrangement = if (XStats.isScreenRound()) Arrangement.Center else when (align) {
                 XAlignType.START -> Arrangement.Start
                 XAlignType.CENTER -> Arrangement.Center
                 XAlignType.END -> Arrangement.End
-            }
-            // horizontalArrangement = Arrangement.Center
+            }*/
         ) {
             AnimatedVisibility(
                 visible = isPressed.value,

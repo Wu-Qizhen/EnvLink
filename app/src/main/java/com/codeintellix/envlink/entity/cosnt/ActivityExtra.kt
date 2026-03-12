@@ -8,4 +8,5 @@ package com.codeintellix.envlink.entity.cosnt
 object ActivityExtra {
     const val DEVICE_ADDRESS_EXTRA = "device_address"
     const val DEVICE_SYSTEM_VERSION_EXTRA = "device_system_version"
+    const val SHOW_SPLASH_SCREEN_EXTRA = "show_splash_screen"
 }

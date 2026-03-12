@@ -12,7 +12,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.Build
-import android.widget.Toast
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.codeintellix.envlink.domain.device.BluetoothScanner
@@ -23,9 +22,12 @@ import com.codeintellix.envlink.entity.device.DeviceConfig
 import com.codeintellix.envlink.entity.house.RoomType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import java.lang.reflect.Method
@@ -40,7 +42,6 @@ class DeviceAddViewModel(
     private val bluetoothScanner: BluetoothScanner,
     context: Context
 ) : ViewModel() {
-    // TODO: Toast
     private val appContext: Context = context.applicationContext
     private var scanJob: Job? = null // 扫描协程的 Job
     private var gatt: BluetoothGatt? = null // BLE Gatt 客户端
@@ -50,24 +51,22 @@ class DeviceAddViewModel(
     private val discoveredDevices = mutableSetOf<BluetoothDevice>()
     private var pendingDeviceAddress: String? = null
 
-    // 状态 Flow
+    private val _toastMessage = Channel<String>(Channel.BUFFERED)
+    val toastMessage: Flow<String> = _toastMessage.receiveAsFlow()
+
+    // 状态
     private val _scanResults = MutableStateFlow<List<BluetoothDevice>>(emptyList())
     val scanResults: StateFlow<List<BluetoothDevice>> = _scanResults
-
     private val _isScanning = MutableStateFlow(false)
     val isScanning: StateFlow<Boolean> = _isScanning
-
     private val _connectionState = MutableStateFlow<ConnectionState>(ConnectionState.Idle)
     val connectionState: StateFlow<ConnectionState> = _connectionState
-
-    private val _receivedData = MutableStateFlow("")
-    val receivedData: StateFlow<String> = _receivedData
-
     private var _currentDevice: BluetoothDevice? = null
     val currentDevice: BluetoothDevice? get() = _currentDevice
-
     private val _addedDevices = MutableStateFlow<List<Device>>(emptyList())
     val addedDevices: StateFlow<List<Device>> = _addedDevices
+    private val _receivedData = MutableStateFlow("")
+    val receivedData: StateFlow<String> = _receivedData
 
     // 广播接收器：处理配对请求和绑定状态变化
     private val bluetoothReceiver = object : BroadcastReceiver() {
@@ -100,15 +99,13 @@ class DeviceAddViewModel(
                     val bondState = intent.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE, -1)
                     when (bondState) {
                         BluetoothDevice.BOND_BONDED -> {
-                            Toast.makeText(appContext, "配对成功", Toast.LENGTH_SHORT).show()
-                            // 配对成功后不需要再次连接，GATT 连接会继续
+                            updateToastMessage("配对成功")
                             // 配对成功后，重新启用通知（确保通知有效）
                             reactivateNotification()
                         }
 
                         BluetoothDevice.BOND_NONE -> {
-                            Toast.makeText(appContext, "配对失败", Toast.LENGTH_SHORT).show()
-                            // 可清理状态
+                            updateToastMessage("配对失败")
                         }
                     }
                 }
@@ -165,6 +162,7 @@ class DeviceAddViewModel(
                     _connectionState.value = ConnectionState.Connected(gatt.device)
                 } else {
                     _connectionState.value = ConnectionState.Failed("未找到指定服务")
+                    updateToastMessage("未找到指定服务")
                 }
             } else {
                 _connectionState.value = ConnectionState.Failed("服务发现失败")
@@ -201,6 +199,7 @@ class DeviceAddViewModel(
         ) {
             if (status != BluetoothGatt.GATT_SUCCESS) {
                 _connectionState.value = ConnectionState.Failed("发送失败")
+                updateToastMessage("发送失败")
             }
         }
     }
@@ -269,6 +268,12 @@ class DeviceAddViewModel(
         }
     }
 
+    private fun updateToastMessage(message: String) {
+        viewModelScope.launch {
+            _toastMessage.send(message)
+        }
+    }
+
     // BLE 扫描
     fun startBleScan() {
         _currentDevice = null
@@ -287,7 +292,7 @@ class DeviceAddViewModel(
                         }
                 }
             } catch (_: kotlinx.coroutines.TimeoutCancellationException) {
-                // 超时处理：可更新一个状态提示 UI，或直接静默结束（_isScanning 已在 finally 中置 false）
+                // updateToastMessage("搜索超时")
             } finally {
                 _isScanning.value = false
             }
@@ -368,9 +373,11 @@ class DeviceAddViewModel(
                 }
             } catch (_: Exception) {
                 _connectionState.value = ConnectionState.Failed("发送异常")
+                updateToastMessage("发送异常")
             }
         } else {
             _connectionState.value = ConnectionState.Failed("设备未连接")
+            updateToastMessage("设备未连接")
         }
     }
 
