@@ -47,6 +47,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.codeintellix.envlink.R
+import com.codeintellix.envlink.activity.common.widget.AcrylicButton
 import com.codeintellix.envlink.activity.common.widget.AliveTextField
 import com.codeintellix.envlink.activity.common.widget.MicaCard
 import com.codeintellix.envlink.activity.theme.BlackGray
@@ -103,6 +104,9 @@ class DeviceSettingsActivity : ComponentActivity() {
 
         var deviceName by remember { mutableStateOf(device?.name ?: "") }
         var isEditingName by remember { mutableStateOf(false) }
+
+        // 删除设备按钮
+        var showDeleteDialog by remember { mutableStateOf(false) }
 
         Column(
             modifier = Modifier
@@ -278,86 +282,38 @@ class DeviceSettingsActivity : ComponentActivity() {
                     Spacer(modifier = Modifier.height(10.dp))
                     InfoRow(
                         label = "系统版本",
-                        value = "V$deviceSystemVersion" // TODO
+                        value = "V$deviceSystemVersion"
                     )
                 }
-
-                /*// 删除设备按钮
-                var showDeleteDialog by remember { mutableStateOf(false) }
-
-                XCard.Lively(
-                    modifier = Modifier.fillMaxWidth(),
-                    padding = XPadding.all(15),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    color = XColorGroup(
-                        background = OrangeRed,
-                        activeBackground = OrangeRed
-                    ),
-                    onClick = {
-                        showDeleteDialog = true
-                    }
+                AcrylicButton(
+                    text = "删除设备",
+                    backgroundColor = OrangeRed
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_construct),
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.height(40.dp)
-                        )
-                        Spacer(modifier = Modifier.height(10.dp))
-                        Text(
-                            text = "删除设备",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-                        Spacer(modifier = Modifier.height(5.dp))
-                        Text(
-                            text = "删除后将无法恢复",
-                            fontSize = 14.sp,
-                            color = Color.White.copy(alpha = 0.8f)
-                        )
-                    }
+                    showDeleteDialog = true
                 }
 
                 if (showDeleteDialog) {
-                    androidx.compose.material3.AlertDialog(
-                        onDismissRequest = {
+                    XDialog.Confirm(
+                        padding = XPadding.all(25),
+                        borderRadius = 25,
+                        backgroundColor = Color.White,
+                        dismissButtonColor = LightGreen,
+                        confirmButtonColor = OrangeRed,
+                        title = "删除确认",
+                        message = "确定要删除此设备吗？删除后可重新配对添加",
+                        dismiss = "取消",
+                        confirm = "删除",
+                        onDismiss = { showDeleteDialog = false },
+                        onConfirm = {
+                            scope.launch {
+                                // TODO
+                                DeviceRepository.getInstance(applicationContext)
+                                    .removeDevice(deviceAddress)
+                            }
                             showDeleteDialog = false
-                        },
-                        title = { Text(text = "确认删除") },
-                        text = { Text(text = "确定要删除此设备吗？删除后将无法恢复。") },
-                        confirmButton = {
-                            XItem.Button(
-                                text = "删除",
-                                color = XColorGroup(
-                                    background = OrangeRed,
-                                    content = Color.White
-                                ),
-                                onClick = {
-                                    scope.launch {
-                                        DeviceRepository.getInstance(applicationContext)
-                                            .removeDevice(deviceAddress)
-                                        onDeleteSuccess()
-                                    }
-                                    showDeleteDialog = false
-                                }
-                            )
-                        },
-                        dismissButton = {
-                            XItem.Button(
-                                text = "取消",
-                                color = XColorGroup(
-                                    background = Gray,
-                                    content = Color.White
-                                ),
-                                onClick = {
-                                    showDeleteDialog = false
-                                }
-                            )
                         }
                     )
-                }*/
+                }
             }
         }
     }

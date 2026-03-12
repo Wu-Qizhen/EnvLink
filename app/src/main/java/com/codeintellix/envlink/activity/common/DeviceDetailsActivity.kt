@@ -341,7 +341,9 @@ class DeviceDetailsActivity : ComponentActivity() {
                                 )
                                 intent.putExtra(
                                     ActivityExtra.DEVICE_SYSTEM_VERSION_EXTRA,
-                                    "${systemInfo?.versionMajor}.${systemInfo?.versionMinor}.${systemInfo?.versionPatch}"
+                                    systemInfo?.let {
+                                        "${it.versionMajor}.${it.versionMinor}.${it.versionPatch}"
+                                    } ?: "未知"
                                 )
                                 startActivity(intent)
                             }
