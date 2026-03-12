@@ -1,6 +1,8 @@
 package com.codeintellix.envlink.activity.common
 
+import aethex.matrix.animation.XActivateVfx.clickVfx
 import aethex.matrix.foundation.color.XColorGroup
+import aethex.matrix.foundation.color.withAlpha
 import aethex.matrix.foundation.property.XPadding
 import aethex.matrix.ui.XBackground
 import aethex.matrix.ui.XDialog
@@ -13,20 +15,27 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -41,7 +50,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -56,6 +67,7 @@ import com.codeintellix.envlink.activity.common.widget.AliveTextField
 import com.codeintellix.envlink.activity.common.widget.MicaCard
 import com.codeintellix.envlink.activity.theme.BlackGray
 import com.codeintellix.envlink.activity.theme.Gray
+import com.codeintellix.envlink.activity.theme.GrayWhite
 import com.codeintellix.envlink.activity.theme.GreenWhite
 import com.codeintellix.envlink.activity.theme.LightGreen
 import com.codeintellix.envlink.activity.theme.OrangeRed
@@ -64,6 +76,7 @@ import com.codeintellix.envlink.data.device.DeviceDetailViewModel
 import com.codeintellix.envlink.data.device.DeviceDetailViewModelFactory
 import com.codeintellix.envlink.data.device.DeviceRepository
 import com.codeintellix.envlink.entity.cosnt.ActivityExtra
+import com.codeintellix.envlink.entity.house.RoomType
 import kotlinx.coroutines.launch
 
 class DeviceSettingsActivity : ComponentActivity() {
@@ -101,275 +114,444 @@ class DeviceSettingsActivity : ComponentActivity() {
         )
         val device by viewModel.device.collectAsState()
         var deviceName by remember { mutableStateOf(device?.name ?: "") }
-        var showEditDialog by remember { mutableStateOf(false) }
+        var showNameEditDialog by remember { mutableStateOf(false) }
+        var showRoomEditDialog by remember { mutableStateOf(false) }
         var showDeleteDialog by remember { mutableStateOf(false) }
+        val rooms = RoomType.getAllNames()
+        var selectedRoom by remember { mutableStateOf(RoomType.BALCONY.displayName) }
 
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(systemBarPadding)
+        Box(
+            modifier = Modifier.fillMaxSize()
         ) {
-            XHeader.BackText(
-                text = "设置",
-                textColor = Color.Black,
-                fontWeight = FontWeight.Normal,
-                fontSize = 28,
-                iconColor = Color.Black,
-                headerPadding = XPadding.all(20)
-            )
-
-            Canvas(
+            Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-            ) {
-                drawLine(
-                    color = if (isScrolled) WhiteGray else Color.Transparent,
-                    strokeWidth = 1.dp.toPx(),
-                    start = Offset(0f, 0f),
-                    end = Offset(size.width, 0f)
-                )
-            }
-
+                    .align(Alignment.TopStart)
+                    .offset(x = (-100).dp, y = (-100).dp)
+                    .size(300.dp)
+                    // .fillMaxWidth()
+                    // .scale(scaleX = 1.2f, scaleY = 1.2f)
+                    .aspectRatio(1f)
+                    .alpha(0.4f)
+                    .background(
+                        shape = CircleShape, brush = Brush.radialGradient(
+                            listOf(
+                                LightGreen,
+                                Color.Transparent
+                            )
+                        )
+                    )
+            )
             Column(
                 modifier = Modifier
-                    .verticalScroll(scrollState)
-                    .padding(
-                        top = 20.dp,
-                        start = 20.dp,
-                        end = 20.dp,
-                        bottom = 120.dp
-                    )
-                    .fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(15.dp)
+                    .fillMaxSize()
+                    .padding(systemBarPadding)
             ) {
-                // 设备名称设置
-                MicaCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    onClick = {
-                        deviceName = device?.name ?: ""
-                        showEditDialog = true
-                    }
+                XHeader.BackText(
+                    text = "设置",
+                    textColor = Color.Black,
+                    fontWeight = FontWeight.Normal,
+                    fontSize = 28,
+                    iconColor = Color.Black,
+                    headerPadding = XPadding.all(20)
+                )
+
+                Canvas(
+                    modifier = Modifier
+                        .fillMaxWidth()
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            text = "设备名称",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.weight(1f),
-                            color = BlackGray
-                        )
-                        Text(
-                            text = device?.name
-                                ?: stringResource(R.string.microenvironment_controller),
-                            fontSize = 16.sp,
-                            color = Gray
-                        )
-                        Spacer(modifier = Modifier.width(15.dp))
-                        Icon(
-                            modifier = Modifier
-                                .size(20.dp),
-                            painter = painterResource(R.drawable.ic_arrow_right),
-                            contentDescription = null,
-                            tint = Gray
-                        )
-                    }
+                    drawLine(
+                        color = if (isScrolled) WhiteGray else Color.Transparent,
+                        strokeWidth = 1.dp.toPx(),
+                        start = Offset(0f, 0f),
+                        end = Offset(size.width, 0f)
+                    )
                 }
 
-                if (showEditDialog) {
-                    XDialog.Empty(
-                        backgroundColor = Color.White,
-                        padding = XPadding.all(25),
-                        borderRadius = 25,
-                        onDismiss = { showEditDialog = false }
+                Column(
+                    modifier = Modifier
+                        .verticalScroll(scrollState)
+                        .padding(
+                            top = 20.dp,
+                            start = 20.dp,
+                            end = 20.dp,
+                            bottom = 120.dp
+                        )
+                        .fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(15.dp)
+                ) {
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Image(
+                        painter = painterResource(R.drawable.img_plant),
+                        contentDescription = null,
+                        modifier = Modifier
+                            .clickVfx()
+                            .fillMaxWidth(0.5f)
+                            .align(Alignment.CenterHorizontally)
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // 设备名称设置
+                    MicaCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = {
+                            deviceName = device?.name ?: ""
+                            showNameEditDialog = true
+                        }
                     ) {
-                        Text(
-                            text = "设备名称",
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = BlackGray
-                        )
-                        Spacer(modifier = Modifier.height(15.dp))
-                        AliveTextField(
-                            label = "限制 30 个字符",
-                            maxLines = 1,
-                            placeholder = "请输入设备名称",
-                            modifier = Modifier.fillMaxWidth(),
-                            value = deviceName,
-                            onValueChange = { deviceName = it },
-                        )
-                        Spacer(modifier = Modifier.height(15.dp))
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.End,
-                            verticalAlignment = Alignment.CenterVertically
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            XItem.Button(
-                                text = "取消",
-                                color = XColorGroup(
-                                    background = OrangeRed,
-                                    content = Color.White
-                                ),
-                                onClick = {
-                                    showEditDialog = false
-                                    deviceName = device?.name ?: ""
-                                },
+                            Text(
+                                text = "设备名称",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.weight(1f),
+                                color = BlackGray
+                            )
+                            Text(
+                                text = device?.name
+                                    ?: stringResource(R.string.microenvironment_controller),
+                                fontSize = 16.sp,
+                                color = Gray
                             )
                             Spacer(modifier = Modifier.width(15.dp))
-                            XItem.Button(
-                                text = "保存",
-                                color = XColorGroup(
-                                    background = LightGreen,
-                                    content = Color.White
-                                ),
-                                onClick = {
-                                    device?.let {
-                                        val updatedDevice = it.copy(name = deviceName.take(30))
-                                        scope.launch {
-                                            DeviceRepository.getInstance(applicationContext)
-                                                .updateDevice(updatedDevice)
-                                            Toast.makeText(
-                                                this@DeviceSettingsActivity,
-                                                "设备名称修改成功",
-                                                Toast.LENGTH_SHORT
-                                            ).show()
-                                            showEditDialog = false
-                                        }
-                                    }
-                                },
+                            Icon(
+                                modifier = Modifier
+                                    .size(20.dp),
+                                painter = painterResource(R.drawable.ic_arrow_right),
+                                contentDescription = null,
+                                tint = Gray
                             )
                         }
                     }
-                }
 
-                // 设备信息
-                MicaCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.Start
-                ) {
-                    Text(
-                        text = "设备信息",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = BlackGray
-                    )
-                    Spacer(modifier = Modifier.height(10.dp))
-                    InfoRow(label = "设备地址", value = device?.address ?: "未知")
-                    Spacer(modifier = Modifier.height(10.dp))
-                    InfoRow(
-                        label = "设备添加时间",
-                        value = device?.createTime?.let { formatTime(it) } ?: "未知")
-                    Spacer(modifier = Modifier.height(10.dp))
-                    InfoRow(
-                        label = "最后连接时间",
-                        value = device?.lastConnectedTime?.let { formatTime(it) } ?: "未知")
-                }
+                    if (showNameEditDialog) {
+                        XDialog.Empty(
+                            backgroundColor = Color.White,
+                            padding = XPadding.all(25),
+                            borderRadius = 25,
+                            onDismiss = { showNameEditDialog = false }
+                        ) {
+                            Text(
+                                text = "设备名称",
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = BlackGray
+                            )
+                            Spacer(modifier = Modifier.height(15.dp))
+                            AliveTextField(
+                                label = "限制 30 个字符",
+                                maxLines = 1,
+                                placeholder = "请输入设备名称",
+                                modifier = Modifier.fillMaxWidth(),
+                                value = deviceName,
+                                onValueChange = { deviceName = it },
+                            )
+                            Spacer(modifier = Modifier.height(15.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.End,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                XItem.Button(
+                                    text = "取消",
+                                    color = XColorGroup(
+                                        background = OrangeRed,
+                                        content = Color.White
+                                    ),
+                                    onClick = {
+                                        showNameEditDialog = false
+                                        deviceName = device?.name ?: ""
+                                    },
+                                )
+                                Spacer(modifier = Modifier.width(15.dp))
+                                XItem.Button(
+                                    text = "保存",
+                                    color = XColorGroup(
+                                        background = LightGreen,
+                                        content = Color.White
+                                    ),
+                                    onClick = {
+                                        device?.let {
+                                            val updatedDevice = it.copy(name = deviceName.take(30))
+                                            scope.launch {
+                                                DeviceRepository.getInstance(applicationContext)
+                                                    .updateDevice(updatedDevice)
+                                                Toast.makeText(
+                                                    this@DeviceSettingsActivity,
+                                                    "设备名称修改成功",
+                                                    Toast.LENGTH_SHORT
+                                                ).show()
+                                                showNameEditDialog = false
+                                            }
+                                        }
+                                    }
+                                )
+                            }
+                        }
+                    }
 
-                // 系统版本信息
-                MicaCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.Start
-                ) {
-                    Text(
-                        text = "系统信息",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = BlackGray
-                    )
-                    Spacer(modifier = Modifier.height(10.dp))
-                    InfoRow(
-                        label = "系统版本",
-                        value = device?.let { "Version ${it.firmwareVersion}" } ?: "未知"
-                    )
-                }
-                AcrylicButton(
-                    text = "删除设备",
-                    backgroundColor = OrangeRed
-                ) {
-                    showDeleteDialog = true
-                }
-
-                if (showDeleteDialog) {
-                    XDialog.Empty(
-                        backgroundColor = Color.White,
-                        padding = XPadding.all(25),
-                        borderRadius = 25,
-                        onDismiss = { showDeleteDialog = false }
+                    // 设备名称设置
+                    MicaCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = {
+                            showRoomEditDialog = true
+                        }
                     ) {
-                        // 标题
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = "位置管理",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.weight(1f),
+                                color = BlackGray
+                            )
+                            Text(
+                                text = device?.room
+                                    ?: "未知房间",
+                                fontSize = 16.sp,
+                                color = Gray
+                            )
+                            Spacer(modifier = Modifier.width(15.dp))
+                            Icon(
+                                modifier = Modifier
+                                    .size(20.dp),
+                                painter = painterResource(R.drawable.ic_arrow_right),
+                                contentDescription = null,
+                                tint = Gray
+                            )
+                        }
+                    }
+
+                    if (showRoomEditDialog) {
+                        XDialog.Empty(
+                            backgroundColor = Color.White,
+                            padding = XPadding.all(25),
+                            borderRadius = 25,
+                            onDismiss = { showRoomEditDialog = false }
+                        ) {
+                            Text(
+                                text = "位置管理",
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = BlackGray
+                            )
+                            Spacer(modifier = Modifier.height(15.dp))
+                            FlowRow(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp), // 水平间距
+                                verticalArrangement = Arrangement.spacedBy(10.dp) // 垂直间距
+                            ) {
+                                rooms.forEach { room ->
+                                    if (selectedRoom == room) {
+                                        XItem.Button(
+                                            color = XColorGroup(
+                                                background = LightGreen,
+                                                activeBackground = LightGreen.withAlpha(0.8f),
+                                                border = null,
+                                                activeBorder = null,
+                                                content = Color.White,
+                                                activeContent = Color.White
+                                            ),
+                                            text = room,
+                                            padding = XPadding.vertical(10).horizontal(15),
+                                            onClick = { selectedRoom = room }
+                                        )
+                                    } else {
+                                        XItem.Button(
+                                            color = XColorGroup(
+                                                background = GrayWhite,
+                                                activeBackground = WhiteGray,
+                                                border = null,
+                                                activeBorder = null,
+                                                content = BlackGray,
+                                                activeContent = BlackGray
+                                            ),
+                                            text = room,
+                                            padding = XPadding.vertical(10).horizontal(15),
+                                            onClick = { selectedRoom = room }
+                                        )
+                                    }
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(15.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.End,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                XItem.Button(
+                                    text = "取消",
+                                    color = XColorGroup(
+                                        background = OrangeRed,
+                                        content = Color.White
+                                    ),
+                                    onClick = {
+                                        showRoomEditDialog = false
+                                        deviceName = device?.name ?: ""
+                                    },
+                                )
+                                Spacer(modifier = Modifier.width(15.dp))
+                                XItem.Button(
+                                    text = "保存",
+                                    color = XColorGroup(
+                                        background = LightGreen,
+                                        content = Color.White
+                                    ),
+                                    onClick = {
+                                        device?.let {
+                                            val updatedDevice = it.copy(room = selectedRoom)
+                                            scope.launch {
+                                                DeviceRepository.getInstance(applicationContext)
+                                                    .updateDevice(updatedDevice)
+                                                Toast.makeText(
+                                                    this@DeviceSettingsActivity,
+                                                    "位置修改成功",
+                                                    Toast.LENGTH_SHORT
+                                                ).show()
+                                                showRoomEditDialog = false
+                                            }
+                                        }
+                                    },
+                                )
+                            }
+                        }
+                    }
+
+                    // 设备信息
+                    MicaCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.Start
+                    ) {
                         Text(
-                            text = "删除确认",
-                            fontSize = 20.sp,
+                            text = "设备信息",
+                            fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
                             color = BlackGray
                         )
+                        Spacer(modifier = Modifier.height(10.dp))
+                        InfoRow(label = "设备地址", value = device?.address ?: "未知")
+                        Spacer(modifier = Modifier.height(10.dp))
+                        InfoRow(
+                            label = "设备添加时间",
+                            value = device?.createTime?.let { formatTime(it) } ?: "未知")
+                        Spacer(modifier = Modifier.height(10.dp))
+                        InfoRow(
+                            label = "最后连接时间",
+                            value = device?.lastConnectedTime?.let { formatTime(it) } ?: "未知")
+                    }
 
-                        Spacer(modifier = Modifier.height(15.dp))
-
-                        // 详细操作指引
+                    // 系统版本信息
+                    MicaCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.Start
+                    ) {
                         Text(
-                            text = "确定要删除此设备吗？删除后可重新配对添加",
+                            text = "系统信息",
                             fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
                             color = BlackGray
                         )
+                        Spacer(modifier = Modifier.height(10.dp))
+                        InfoRow(
+                            label = "系统版本",
+                            value = device?.let { "Version ${it.firmwareVersion}" } ?: "未知"
+                        )
+                    }
 
-                        Spacer(modifier = Modifier.height(15.dp))
+                    AcrylicButton(
+                        text = "删除设备",
+                        backgroundColor = OrangeRed
+                    ) {
+                        showDeleteDialog = true
+                    }
 
-                        // 按钮行
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.End,
-                            verticalAlignment = Alignment.CenterVertically
+                    if (showDeleteDialog) {
+                        XDialog.Empty(
+                            backgroundColor = Color.White,
+                            padding = XPadding.all(25),
+                            borderRadius = 25,
+                            onDismiss = { showDeleteDialog = false }
                         ) {
-                            XItem.Button(
-                                text = "取消",
-                                color = XColorGroup(
-                                    background = LightGreen,
-                                    content = Color.White
-                                ),
-                                onClick = { showDeleteDialog = false }
+                            // 标题
+                            Text(
+                                text = "删除确认",
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = BlackGray
                             )
 
-                            Spacer(modifier = Modifier.width(15.dp))
+                            Spacer(modifier = Modifier.height(15.dp))
 
-                            XItem.Button(
-                                text = "删除",
-                                color = XColorGroup(
-                                    background = OrangeRed,
-                                    content = Color.White
-                                ),
-                                onClick = {
-                                    scope.launch {
-                                        // 删除设备
-                                        DeviceRepository.getInstance(applicationContext)
-                                            .removeDevice(deviceAddress)
+                            // 详细操作指引
+                            Text(
+                                text = "确定要删除此设备吗？删除后可重新配对添加",
+                                fontSize = 16.sp,
+                                color = BlackGray
+                            )
 
-                                        Toast.makeText(
-                                            this@DeviceSettingsActivity,
-                                            "设备删除成功",
-                                            Toast.LENGTH_SHORT
-                                        ).show()
+                            Spacer(modifier = Modifier.height(15.dp))
 
-                                        // 跳转到主页面并清除活动栈
-                                        val intent =
-                                            Intent(
+                            // 按钮行
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.End,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                XItem.Button(
+                                    text = "取消",
+                                    color = XColorGroup(
+                                        background = LightGreen,
+                                        content = Color.White
+                                    ),
+                                    onClick = { showDeleteDialog = false }
+                                )
+
+                                Spacer(modifier = Modifier.width(15.dp))
+
+                                XItem.Button(
+                                    text = "删除",
+                                    color = XColorGroup(
+                                        background = OrangeRed,
+                                        content = Color.White
+                                    ),
+                                    onClick = {
+                                        scope.launch {
+                                            // 删除设备
+                                            DeviceRepository.getInstance(applicationContext)
+                                                .removeDevice(deviceAddress)
+
+                                            Toast.makeText(
                                                 this@DeviceSettingsActivity,
-                                                MainActivity::class.java
+                                                "设备删除成功",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+
+                                            // 跳转到主页面并清除活动栈
+                                            val intent =
+                                                Intent(
+                                                    this@DeviceSettingsActivity,
+                                                    MainActivity::class.java
+                                                )
+                                            intent.putExtra(
+                                                ActivityExtra.SHOW_SPLASH_SCREEN_EXTRA,
+                                                false
                                             )
-                                        intent.putExtra(
-                                            ActivityExtra.SHOW_SPLASH_SCREEN_EXTRA,
-                                            false
-                                        )
-                                        intent.flags =
-                                            Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-                                        startActivity(intent)
-                                        finish()
+                                            intent.flags =
+                                                Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                                            startActivity(intent)
+                                            finish()
+                                        }
+                                        showDeleteDialog = false
                                     }
-                                    showDeleteDialog = false
-                                }
-                            )
+                                )
+                            }
                         }
                     }
                 }

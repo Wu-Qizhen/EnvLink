@@ -74,6 +74,7 @@ import com.codeintellix.envlink.activity.common.widget.AliveTextField
 import com.codeintellix.envlink.activity.common.widget.MicaCard
 import com.codeintellix.envlink.activity.theme.BlackGray
 import com.codeintellix.envlink.activity.theme.Gray
+import com.codeintellix.envlink.activity.theme.GrayWhite
 import com.codeintellix.envlink.activity.theme.GreenWhite
 import com.codeintellix.envlink.activity.theme.LightGreen
 import com.codeintellix.envlink.activity.theme.OrangeRed
@@ -163,7 +164,7 @@ class DeviceAddActivity : ComponentActivity() {
         // 命名模式状态
         var namingMode by remember { mutableStateOf(false) }
         var deviceNameInput by remember { mutableStateOf("") }
-        var selectedRoom by remember { mutableStateOf("阳台") }
+        var selectedRoom by remember { mutableStateOf(RoomType.BALCONY.displayName) }
         val rooms = RoomType.getAllNames()
 
         LaunchedEffect(viewModel) {
@@ -289,24 +290,43 @@ class DeviceAddActivity : ComponentActivity() {
                                         Spacer(modifier = Modifier.height(10.dp))
                                         FlowRow(
                                             modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.spacedBy(5.dp), // 水平间距
-                                            verticalArrangement = Arrangement.spacedBy(5.dp) // 垂直间距
+                                            horizontalArrangement = Arrangement.spacedBy(10.dp), // 水平间距
+                                            verticalArrangement = Arrangement.spacedBy(10.dp) // 垂直间距
                                         ) {
                                             rooms.forEach { room ->
-                                                XItem.Button(
-                                                    color = XColorGroup(
-                                                        background = if (selectedRoom == room) LightGreen else Color.Transparent,
-                                                        activeBackground = if (selectedRoom == room) LightGreen.withAlpha(
-                                                            0.8f
-                                                        ) else WhiteGray,
-                                                        border = null,
-                                                        activeBorder = null,
-                                                        content = if (selectedRoom == room) Color.White else LightGreen,
-                                                        activeContent = if (selectedRoom == room) Color.White else LightGreen
-                                                    ),
-                                                    text = room,
-                                                    onClick = { selectedRoom = room }
-                                                )
+                                                if (selectedRoom == room) {
+                                                    XItem.Button(
+                                                        color = XColorGroup(
+                                                            background = LightGreen,
+                                                            activeBackground = LightGreen.withAlpha(
+                                                                0.8f
+                                                            ),
+                                                            border = null,
+                                                            activeBorder = null,
+                                                            content = Color.White,
+                                                            activeContent = Color.White
+                                                        ),
+                                                        text = room,
+                                                        padding = XPadding.vertical(10)
+                                                            .horizontal(15),
+                                                        onClick = { selectedRoom = room }
+                                                    )
+                                                } else {
+                                                    XItem.Button(
+                                                        color = XColorGroup(
+                                                            background = GrayWhite,
+                                                            activeBackground = WhiteGray,
+                                                            border = null,
+                                                            activeBorder = null,
+                                                            content = BlackGray,
+                                                            activeContent = BlackGray
+                                                        ),
+                                                        text = room,
+                                                        padding = XPadding.vertical(10)
+                                                            .horizontal(15),
+                                                        onClick = { selectedRoom = room }
+                                                    )
+                                                }
                                             }
                                         }
                                     } else {
