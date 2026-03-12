@@ -10,10 +10,15 @@ import aethex.matrix.ui.XItem
 import android.content.Context
 import android.content.Intent
 import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.VectorConverter
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.basicMarquee
@@ -23,6 +28,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.absoluteOffset
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -51,8 +57,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -61,6 +72,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.codeintellix.envlink.R
 import com.codeintellix.envlink.activity.common.DeviceAddActivity
@@ -101,6 +113,8 @@ fun EnvLinkPage() {
     val isScrolled by remember {
         derivedStateOf { scrollState.value > 0 }
     }
+    var iconGlobalCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
+    var rootBoxCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
 
     val weatherViewModel: WeatherViewModel = viewModel()
     val weatherState by weatherViewModel.weatherState.collectAsState()
@@ -138,6 +152,9 @@ fun EnvLinkPage() {
     Box(
         modifier = Modifier
             .fillMaxSize()
+            .onGloballyPositioned { coordinates ->
+                rootBoxCoordinates = coordinates
+            }
     ) {
         Column(
             modifier = Modifier.fillMaxSize()
@@ -193,13 +210,14 @@ fun EnvLinkPage() {
                     }
                 )
 
-                Box(modifier = Modifier.fillMaxWidth()) {
+                Box(
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    // 滚动标签栏
                     ScrollableRowTab(
                         tabs = tabs,
                         selectedTabIndex = selectedTab,
-                        onTabSelected = {
-                            selectedTab = it
-                        },
+                        onTabSelected = { selectedTab = it },
                         modifier = Modifier
                             .fillMaxWidth()
                             .align(Alignment.CenterStart),
@@ -211,10 +229,14 @@ fun EnvLinkPage() {
                         )
                     )
 
+                    // 菜单图标
                     Box(
                         modifier = Modifier
                             .padding(end = 20.dp)
                             .align(Alignment.CenterEnd)
+                            .onGloballyPositioned { coordinates ->
+                                iconGlobalCoordinates = coordinates  // 获取全局坐标
+                            }
                     ) {
                         XIcon.RoundPlane(
                             icon = R.drawable.ic_menu,
@@ -295,6 +317,67 @@ fun EnvLinkPage() {
             )
         }
 
+        // 悬浮菜单卡片（使用全局坐标定位）
+        if (iconGlobalCoordinates != null && rootBoxCoordinates != null) {
+            val density = LocalDensity.current
+            val iconBounds = iconGlobalCoordinates!!.boundsInWindow()
+            val rootBounds = rootBoxCoordinates!!.boundsInWindow()
+
+            val cardWidth = with(density) { 0.4f * rootBounds.width }  // 屏幕一半宽度
+            val spacingPx = with(density) { 8.dp.toPx() }
+            val offsetX = iconBounds.right - cardWidth - rootBounds.left
+            val offsetY = iconBounds.bottom + spacingPx - rootBounds.top
+
+            AnimatedVisibility(
+                visible = showRoomMenu,
+                enter = fadeIn() + scaleIn(
+                    initialScale = 0.8f,
+                    transformOrigin = TransformOrigin(1f, 0f)
+                ),
+                exit = fadeOut() + scaleOut(
+                    targetScale = 0.8f,
+                    transformOrigin = TransformOrigin(1f, 0f)
+                ),
+                modifier = Modifier
+                    .absoluteOffset {
+                        IntOffset(offsetX.toInt(), offsetY.toInt())
+                    }
+                    .zIndex(1f)
+            ) {
+                MicaCard(
+                    modifier = Modifier
+                        .fillMaxWidth(0.4f),
+                    padding = XPadding.all(10),
+                    shadowAlpha = 0f,
+                ) {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(5.dp)
+                    ) {
+                        tabs.forEachIndexed { index, tab ->
+                            XItem.Button(
+                                modifier = Modifier
+                                    .fillMaxWidth(),
+                                text = tab,
+                                color = XColorGroup(
+                                    background = if (selectedTab == index) LightGreen.withAlpha(
+                                        0.2f
+                                    ) else Color.Transparent,
+                                    activeBackground = LightGreen.withAlpha(0.3f),
+                                    border = null,
+                                    activeBorder = null,
+                                    content = if (selectedTab == index) LightGreen else BlackGray,
+                                    activeContent = LightGreen
+                                )
+                            ) {
+                                selectedTab = index
+                                showRoomMenu = false
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         // 点击外部关闭菜单
         if (showRoomMenu) {
             Box(
@@ -304,38 +387,6 @@ fun EnvLinkPage() {
                         showRoomMenu = false
                     })
             )
-
-            MicaCard(
-                modifier = Modifier
-                    .fillMaxWidth(0.5f)
-                    .padding(horizontal = 20.dp),
-                padding = XPadding.all(10)
-            ) {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(5.dp)
-                ) {
-                    tabs.forEachIndexed { index, tab ->
-                        XItem.Button(
-                            modifier = Modifier
-                                .fillMaxWidth(),
-                            text = tab,
-                            color = XColorGroup(
-                                background = if (selectedTab == index) LightGreen.withAlpha(
-                                    0.2f
-                                ) else Color.Transparent,
-                                activeBackground = LightGreen.withAlpha(0.3f),
-                                border = null,
-                                activeBorder = null,
-                                content = if (selectedTab == index) LightGreen else BlackGray,
-                                activeContent = LightGreen
-                            )
-                        ) {
-                            selectedTab = index
-                            showRoomMenu = false
-                        }
-                    }
-                }
-            }
         }
     }
 }
