@@ -70,8 +70,6 @@ class DeviceSettingsActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val deviceAddress = intent.getStringExtra(ActivityExtra.DEVICE_ADDRESS_EXTRA) ?: ""
-        val deviceSystemVersion =
-            intent.getStringExtra(ActivityExtra.DEVICE_SYSTEM_VERSION_EXTRA) ?: "未知"
 
         enableEdgeToEdge()
         setContent {
@@ -80,8 +78,7 @@ class DeviceSettingsActivity : ComponentActivity() {
                 toastMargin = XPadding.horizontal(20).bottom(110)
             ) {
                 DeviceSettingsScreen(
-                    deviceAddress = deviceAddress,
-                    deviceSystemVersion = deviceSystemVersion
+                    deviceAddress = deviceAddress
                 )
             }
         }
@@ -90,8 +87,7 @@ class DeviceSettingsActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     fun DeviceSettingsScreen(
-        deviceAddress: String,
-        deviceSystemVersion: String
+        deviceAddress: String
     ) {
         val systemBarPadding = WindowInsets.systemBars.asPaddingValues()
         val scrollState = rememberScrollState()
@@ -263,7 +259,7 @@ class DeviceSettingsActivity : ComponentActivity() {
                     InfoRow(label = "设备地址", value = device?.address ?: "未知")
                     Spacer(modifier = Modifier.height(10.dp))
                     InfoRow(
-                        label = "创建时间",
+                        label = "设备添加时间",
                         value = device?.createTime?.let { formatTime(it) } ?: "未知")
                     Spacer(modifier = Modifier.height(10.dp))
                     InfoRow(
@@ -285,7 +281,7 @@ class DeviceSettingsActivity : ComponentActivity() {
                     Spacer(modifier = Modifier.height(10.dp))
                     InfoRow(
                         label = "系统版本",
-                        value = "Version $deviceSystemVersion"
+                        value = device?.let { "Version ${it.firmwareVersion}" } ?: "未知"
                     )
                 }
                 AcrylicButton(

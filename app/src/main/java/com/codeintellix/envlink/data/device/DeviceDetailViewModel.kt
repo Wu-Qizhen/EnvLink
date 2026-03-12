@@ -441,6 +441,12 @@ class DeviceDetailViewModel(
                         BleProtocolHelper.parseSystemInfo(parsed.payload)?.let { info ->
                             _controlMode.value = info.controlMode
                             _systemInfo.value = info
+                            // 更新固件版本到数据库
+                            val firmwareVersion =
+                                "${info.versionMajor}.${info.versionMinor}.${info.versionPatch}"
+                            viewModelScope.launch {
+                                repository.updateFirmwareVersion(deviceAddress, firmwareVersion)
+                            }
                         }
                     }
 

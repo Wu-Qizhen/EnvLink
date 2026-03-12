@@ -339,12 +339,6 @@ class DeviceDetailsActivity : ComponentActivity() {
                                     ActivityExtra.DEVICE_ADDRESS_EXTRA,
                                     deviceAddress
                                 )
-                                intent.putExtra(
-                                    ActivityExtra.DEVICE_SYSTEM_VERSION_EXTRA,
-                                    systemInfo?.let {
-                                        "${it.versionMajor}.${it.versionMinor}.${it.versionPatch}"
-                                    } ?: "未知"
-                                )
                                 startActivity(intent)
                             }
                         )

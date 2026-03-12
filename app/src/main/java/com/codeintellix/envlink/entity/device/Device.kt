@@ -17,5 +17,6 @@ data class Device(
     val room: String = RoomType.BALCONY.displayName,
     val createTime: Long = System.currentTimeMillis(), // 添加时间
     val lastConnectedTime: Long = System.currentTimeMillis(),
-    val latestSensorData: String = "" // 最新传感器数据，以 JSON 字符串格式存储
+    val latestSensorData: String = "", // 最新传感器数据，以 JSON 字符串格式存储
+    val firmwareVersion: String = "" // 固件版本（系统版本）
 )
