@@ -79,6 +79,7 @@ class DeviceDetailViewModel(
     companion object {
         private const val MIN_REFRESH_INTERVAL = 5000L
         private const val AUTO_REFRESH_INTERVAL = 30000L
+        private const val CONTROL_PARAMS_SAVE_TIMEOUT = 5000L
     }
 
     private val _toastMessage = Channel<String>(Channel.BUFFERED)
@@ -593,7 +594,7 @@ class DeviceDetailViewModel(
 
         // 超时保护：2 秒后若 loading 仍为 true 则自动重置
         viewModelScope.launch {
-            delay(2000)
+            delay(CONTROL_PARAMS_SAVE_TIMEOUT)
             if (_paramsLoading.value) {
                 _paramsLoading.value = false
                 if (pendingParamsSave) {
