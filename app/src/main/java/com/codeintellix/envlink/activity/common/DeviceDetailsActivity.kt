@@ -927,15 +927,28 @@ class DeviceDetailsActivity : ComponentActivity() {
                     Text(
                         text = "有未保存的更改",
                         fontSize = 12.sp,
-                        color = OrangeRed
+                        color = OrangeRed,
+                        modifier = Modifier.weight(1f)
                     )
                 } else {
                     Text(
                         text = "不需要的控制可设为极值",
                         fontSize = 12.sp,
-                        color = Gray
+                        color = Gray,
+                        modifier = Modifier.weight(1f)
                     )
                 }
+
+                XItem.Button(
+                    text = "恢复默认",
+                    padding = XPadding.vertical(5).horizontal(10),
+                    fontSize = 14,
+                    color = XColorGroup(
+                        background = LightGreen,
+                        content = Color.White
+                    ),
+                    onClick = { viewModel.updateDraftParams(ControlParams.DEFAULT) },
+                )
             }
 
             ThresholdCard(

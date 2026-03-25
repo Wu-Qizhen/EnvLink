@@ -17,12 +17,12 @@ data class ControlParams(
 ) {
     companion object {
         val DEFAULT = ControlParams(
-            soilMoistureLow = 20.0f,
+            soilMoistureLow = 40.0f,
             soilMoistureHigh = 60.0f,
-            temperatureHigh = 28.0f,
-            temperatureLow = 22.0f,
+            temperatureHigh = 30.0f,
+            temperatureLow = 28.0f,
             lightIntensityLow = 500.0f,
-            lightIntensityHigh = 1000.0f,
+            lightIntensityHigh = 800.0f,
             minPumpInterval = 300,
             maxPumpDuration = 30
         )
