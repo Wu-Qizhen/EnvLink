@@ -1032,7 +1032,7 @@ class DeviceDetailsActivity : ComponentActivity() {
 
             ThresholdCard(
                 title = "光照强度上限",
-                description = "高于该强度关闭水泵关闭补光灯",
+                description = "高于该强度关闭补光灯",
                 value = draftParams.lightIntensityHigh.toInt().toString(),
                 minValue = 0,
                 maxValue = 50000,
